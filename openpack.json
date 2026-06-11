@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "name": "nestdev-core-toolkit",
   "version": "0.1.0",
   "provides": [
