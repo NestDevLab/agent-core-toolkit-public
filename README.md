@@ -71,6 +71,7 @@ Starter skills:
 Starter rules:
 
 - `engineering-standards.md`
+- `public-audience-privacy.md`
 - `safe-actions.md`
 
 ## Public Boundary
