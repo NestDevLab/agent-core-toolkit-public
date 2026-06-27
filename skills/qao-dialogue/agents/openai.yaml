@@ -1,4 +1,0 @@
-interface:
-  display_name: "QAO Dialogue"
-  short_description: "Converge with clarifying questions"
-  default_prompt: "Use $qao-dialogue to help me reach a well-supported answer or opinion before acting."

@@ -1,13 +1,13 @@
 ---
-name: qao-dialogue
-description: Use when the user asks for QAO/question-answer-opinion mode, wants a high-confidence answer or opinion through clarifying questions, asks the agent to keep asking until enough context is gathered, or challenges a prior answer and wants the dialogue to continue.
+name: convergent-dialogue
+description: Use when the user asks for convergent dialogue, QAO/question-answer-opinion mode, a high-confidence answer or opinion through clarifying questions, continued questioning until enough context is gathered, or a correction loop after challenging a prior answer.
 ---
 
-# QAO Dialogue
+# Convergent Dialogue
 
 Use this skill to converge on a well-supported answer or opinion before acting.
-QAO means the session alternates between focused questions, provisional answers, and explicit
-opinions until the remaining uncertainty is acceptable or the user redirects.
+It supports the QAO pattern: the session alternates between focused questions, provisional answers,
+and explicit opinions until the remaining uncertainty is acceptable or the user redirects.
 
 ## Core Loop
 
@@ -59,6 +59,6 @@ Repeat until the user accepts the answer, chooses to stop, or the blocker is exp
 
 ## Composition
 
-- Use a planning skill when the conversation becomes an implementation plan with steps, validation, or approval gates.
-- Use a grilling or stress-test skill when the user wants a plan, design, or opinion challenged aggressively.
+- Use `plan-task` or an equivalent planning skill when the conversation becomes an implementation plan with steps, validation, or approval gates.
+- Use `grill-me` or an equivalent stress-test skill when the user wants a plan, design, or opinion challenged aggressively.
 - Use domain-specific skills whenever the target answer depends on specialized tools, schemas, policies, or source material.

@@ -66,7 +66,7 @@ Starter skills:
 
 - `code-review`: findings-first technical review.
 - `plan-task`: ordered planning with assumptions and stop points.
-- `qao-dialogue`: question-answer-opinion convergence through clarifying questions and correction loops.
+- `convergent-dialogue`: answer/opinion convergence through clarifying questions and correction loops.
 - `write-docs`: durable technical documentation.
 
 Starter rules:
