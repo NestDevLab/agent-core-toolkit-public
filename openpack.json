@@ -2,9 +2,37 @@
   "schemaVersion": 2,
   "name": "nestdev-core-toolkit",
   "version": "0.1.0",
+  "suggests": {
+    "brainstorming": {
+      "source": "vercel:skills.sh/jwynia/agent-skills",
+      "select": ["skills/brainstorming"],
+      "reason": "Generate candidate angles before narrowing to an answer or opinion.",
+      "when": "Use before convergence when the option space is still too narrow or underspecified."
+    },
+    "good-thinking": {
+      "source": "vercel:skills.sh/jwynia/agent-skills",
+      "select": ["skills/good-thinking"],
+      "reason": "Audit reasoning quality before presenting a high-confidence answer.",
+      "when": "Use when confidence is important but evidence, assumptions, or tradeoffs need another pass."
+    },
+    "grill-me": {
+      "source": "skillkit:github:mattpocock/skills",
+      "select": ["skills/grill-me"],
+      "reason": "Stress-test a plan, design, or opinion before finalizing it.",
+      "when": "Use when the user asks to challenge the conclusion or when the stakes justify adversarial review."
+    }
+  },
   "provides": [
     { "type": "instructions", "path": "AGENTS.md" },
     { "type": "rules", "path": "rules", "runtimes": ["claude", "copilot", "openclaw", "hermes"] },
-    { "type": "skills", "path": "skills" }
+    {
+      "type": "skills",
+      "path": "skills",
+      "items": {
+        "convergent-dialogue": {
+          "suggests": ["brainstorming", "good-thinking", "grill-me"]
+        }
+      }
+    }
   ]
 }
