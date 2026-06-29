@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "provides": [
     { "type": "instructions", "path": "AGENTS.md" },
-    { "type": "rules", "path": "rules" },
+    { "type": "rules", "path": "rules", "runtimes": ["claude", "copilot", "openclaw", "hermes"] },
     { "type": "skills", "path": "skills" }
   ]
 }

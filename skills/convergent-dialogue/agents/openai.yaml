@@ -1,0 +1,4 @@
+interface:
+  display_name: "Convergent Dialogue"
+  short_description: "Converge through focused questions"
+  default_prompt: "Use $convergent-dialogue to help me reach a well-supported answer or opinion before acting."

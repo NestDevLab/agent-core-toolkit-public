@@ -66,11 +66,13 @@ Starter skills:
 
 - `code-review`: findings-first technical review.
 - `plan-task`: ordered planning with assumptions and stop points.
+- `convergent-dialogue`: answer/opinion convergence through clarifying questions and correction loops.
 - `write-docs`: durable technical documentation.
 
 Starter rules:
 
 - `engineering-standards.md`
+- `public-audience-privacy.md`
 - `safe-actions.md`
 
 ## Public Boundary
