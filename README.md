@@ -66,7 +66,7 @@ Starter skills:
 
 - `code-review`: findings-first technical review.
 - `plan-task`: ordered planning with assumptions and stop points.
-- `convergent-dialogue`: answer/opinion convergence through clarifying questions and correction loops.
+- `interview-me`: focused questions before a confident answer, opinion, decision, or plan.
 - `write-docs`: durable technical documentation.
 
 Starter rules:
