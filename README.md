@@ -66,7 +66,7 @@ Starter skills:
 
 - `code-review`: findings-first technical review.
 - `plan-task`: ordered planning with assumptions and stop points.
-- `interview-me`: focused questions before a confident answer, opinion, decision, or plan.
+- `decision-interview`: focused questions before a confident answer, opinion, decision, or plan.
 - `write-docs`: durable technical documentation.
 
 Starter rules:

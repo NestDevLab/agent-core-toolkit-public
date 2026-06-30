@@ -1,4 +1,0 @@
-interface:
-  display_name: "Interview Me"
-  short_description: "Get interviewed before the answer"
-  default_prompt: "Use $interview-me to interview me until you can give a well-supported answer or opinion."

@@ -29,7 +29,7 @@
       "type": "skills",
       "path": "skills",
       "items": {
-        "interview-me": {
+        "decision-interview": {
           "suggests": ["brainstorming", "good-thinking", "grill-me"]
         }
       }
