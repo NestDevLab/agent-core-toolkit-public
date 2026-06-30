@@ -29,7 +29,7 @@
       "type": "skills",
       "path": "skills",
       "items": {
-        "convergent-dialogue": {
+        "interview-me": {
           "suggests": ["brainstorming", "good-thinking", "grill-me"]
         }
       }
