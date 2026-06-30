@@ -1,0 +1,4 @@
+interface:
+  display_name: "Decision Interview"
+  short_description: "Get interviewed before deciding"
+  default_prompt: "Use $decision-interview to interview me until you can give a well-supported answer or opinion."

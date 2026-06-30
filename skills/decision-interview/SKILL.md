@@ -1,9 +1,9 @@
 ---
-name: interview-me
-description: Use when the user asks to be interviewed with focused questions before an answer, opinion, decision, plan, or recommendation; wants QAO/question-answer-opinion mode; wants continued questioning until confidence is high; or challenges an answer and wants a correction loop.
+name: decision-interview
+description: Use when the user asks to be interviewed with focused questions before a decision, answer, opinion, plan, or recommendation; wants QAO/question-answer-opinion mode; wants continued questioning until confidence is high; or challenges an answer and wants a correction loop.
 ---
 
-# Interview Me
+# Decision Interview
 
 Use this skill to converge on a well-supported answer or opinion before acting.
 It supports the QAO pattern: the session alternates between focused questions, provisional answers,
