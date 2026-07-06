@@ -24,6 +24,7 @@
   },
   "provides": [
     { "type": "instructions", "path": "AGENTS.md" },
+    { "type": "fragments", "path": "fragments" },
     { "type": "rules", "path": "rules", "runtimes": ["claude", "copilot", "openclaw", "hermes"] },
     {
       "type": "skills",
