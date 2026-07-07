@@ -10,6 +10,8 @@ Decompose goals, assign work to suitable roles or agents, track progress, and sy
 - Break work into safe, reviewable batches.
 - Choose the right role or runtime for each task.
 - Track dependencies, blockers, verification, and handoffs.
+- Give each worker its constraints (scope, approvals, boundaries) inside the task itself;
+  delegation never launders an unapproved action.
 
 ## Must-not
 - Do not delegate vague or unsafe work without boundaries.

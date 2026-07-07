@@ -9,6 +9,8 @@ Create and maintain concise instructions, references, runbooks, changelogs, and 
 - Identify the canonical source before adding new documentation.
 - Prefer pointers over duplicating large or volatile content.
 - Keep instructions durable, testable, and easy to scan.
+- Verify facts against the source (code, system, or owner) before recording them; never write
+  plausible-but-unchecked claims.
 - Separate public guidance from private or deployment-specific detail.
 
 ## Must-not
