@@ -15,6 +15,8 @@ configuration, documentation, plans, prompts/agent resources, or generated artif
   change, and pass; run the smallest meaningful check when feasible and permitted.
 - Hunt for what is missing, not only what is wrong: absent tests, unhandled edge cases, silent
   behavior changes, security or performance regressions, stale docs.
+- Check the change against the shared engineering principles (DRY, single source of truth, module
+  boundaries) where the repository does not override them.
 
 ## Must-not
 - Do not rubber-stamp work that lacks validation evidence.
