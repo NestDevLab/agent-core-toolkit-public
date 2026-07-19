@@ -22,7 +22,9 @@
       "target_remote": "origin",
       "target_branch": "main",
       "integration_branch": "main-integration",
-      "commits": [],
+      "commits": [
+        "8d090544e1839715212b0824cb2726dcc081a2b8"
+      ],
       "meta": {
         "purpose": "Domain-prefixed skills and role system rollout"
       }
