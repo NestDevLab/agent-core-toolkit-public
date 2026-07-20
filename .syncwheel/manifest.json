@@ -41,6 +41,18 @@
       "meta": {
         "purpose": "Composable role adoption skills and workspace guidance"
       }
+    },
+    {
+      "id": "catalogue-contract",
+      "branch": "pr/catalogue-contract",
+      "base": "origin/main",
+      "target_remote": "origin",
+      "target_branch": "main",
+      "integration_branch": "main-integration",
+      "commits": [],
+      "meta": {
+        "purpose": "Enforce and dispatch public skill catalogue refreshes"
+      }
     }
   ],
   "syncwheel_worktree_root": "var/syncwheel",
