@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   catalogue-contract:
-    uses: NestDevLab/agentwheel/.github/workflows/catalogue-sync.yml@8804266ea7c53a9f5c98edcd372dcbecbb16005a
+    uses: NestDevLab/agentwheel/.github/workflows/catalogue-sync.yml@0863a649c84b8db85679ab428eea67a1a015b3de
     with:
       publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     secrets:
