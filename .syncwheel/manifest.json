@@ -11,21 +11,18 @@
     "base": "origin/main",
     "strategy": "cherry-pick",
     "stacks": [
-<<<<<<< HEAD
       "skill-rename-rollout",
       "role-skill-rollout"
     ]
   },
   "stacks": [
     {
-<<<<<<< HEAD
       "id": "skill-rename-rollout",
       "branch": "codex/skill-rename-rollout",
       "base": "origin/main",
       "target_remote": "origin",
       "target_branch": "main",
       "integration_branch": "main-integration",
-<<<<<<< HEAD
       "commits": [
         "8d090544e1839715212b0824cb2726dcc081a2b8"
       ],
