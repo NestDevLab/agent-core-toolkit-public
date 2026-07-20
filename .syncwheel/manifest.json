@@ -11,22 +11,38 @@
     "base": "origin/main",
     "strategy": "cherry-pick",
     "stacks": [
-      "skill-rename-rollout"
+<<<<<<< HEAD
+      "skill-rename-rollout",
+      "role-skill-rollout"
     ]
   },
   "stacks": [
     {
+<<<<<<< HEAD
       "id": "skill-rename-rollout",
       "branch": "codex/skill-rename-rollout",
       "base": "origin/main",
       "target_remote": "origin",
       "target_branch": "main",
       "integration_branch": "main-integration",
+<<<<<<< HEAD
       "commits": [
         "8d090544e1839715212b0824cb2726dcc081a2b8"
       ],
       "meta": {
         "purpose": "Domain-prefixed skills and role system rollout"
+      }
+    },
+    {
+      "id": "role-skill-rollout",
+      "branch": "codex/role-skill-rollout",
+      "base": "origin/main",
+      "target_remote": "origin",
+      "target_branch": "main",
+      "integration_branch": "main-integration",
+      "commits": [],
+      "meta": {
+        "purpose": "Composable role adoption skills and workspace guidance"
       }
     }
   ],

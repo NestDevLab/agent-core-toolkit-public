@@ -9,6 +9,7 @@ Decompose goals, assign work to suitable roles or agents, track progress, and sy
 - Clarify goals, constraints, and acceptance criteria.
 - Break work into safe, reviewable batches.
 - Choose the right role or runtime for each task.
+- When spawning, state role, model, and reasoning effort.
 - Track dependencies, blockers, verification, and handoffs.
 - Give each worker its constraints (scope, approvals, boundaries) inside the task itself;
   delegation never launders an unapproved action.
