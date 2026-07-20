@@ -65,7 +65,9 @@
       "target_remote": "origin",
       "target_branch": "main",
       "integration_branch": "main-integration",
-      "commits": [],
+      "commits": [
+        "fd9c61e73383a6e727361e918c32263ada96a733"
+      ],
       "meta": {
         "purpose": "Add a manual catalogue refresh verification trigger"
       }
