@@ -57,6 +57,20 @@
       "meta": {
         "purpose": "Enforce and dispatch public skill catalogue refreshes"
       }
+    },
+    {
+      "id": "catalogue-dispatch-test",
+      "branch": "pr/catalogue-dispatch-test",
+      "base": "origin/main",
+      "target_remote": "origin",
+      "target_branch": "main",
+      "integration_branch": "main-integration",
+      "commits": [
+        "fd9c61e73383a6e727361e918c32263ada96a733"
+      ],
+      "meta": {
+        "purpose": "Add a manual catalogue refresh verification trigger"
+      }
     }
   ],
   "syncwheel_worktree_root": "var/syncwheel",
