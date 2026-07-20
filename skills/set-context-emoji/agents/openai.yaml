@@ -1,0 +1,4 @@
+interface:
+  display_name: "Set Context Emoji"
+  short_description: "Prefix a channel or session with an emoji"
+  default_prompt: "Use $set-context-emoji to prefix this session with the best-fit emoji."
