@@ -12,7 +12,8 @@
     "strategy": "cherry-pick",
     "stacks": [
       "skill-rename-rollout",
-      "role-skill-rollout"
+      "role-skill-rollout",
+      "set-context-emoji"
     ]
   },
   "stacks": [
@@ -40,6 +41,20 @@
       "commits": [],
       "meta": {
         "purpose": "Composable role adoption skills and workspace guidance"
+      }
+    },
+    {
+      "id": "set-context-emoji",
+      "branch": "agent/set-context-emoji",
+      "base": "origin/main",
+      "target_remote": "origin",
+      "target_branch": "main",
+      "integration_branch": "main-integration",
+      "commits": [
+        "3daad07aefc1258ec516a71524b0633267cce769"
+      ],
+      "meta": {
+        "purpose": "Add manual semantic emoji prefixes for conversation titles"
       }
     }
   ],
