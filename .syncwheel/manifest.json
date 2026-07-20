@@ -50,7 +50,9 @@
       "target_branch": "main",
       "integration_branch": "main-integration",
       "commits": [
-        "34badde9ad9fca8bf8d080ba310e7e20bc8f002d"
+        "34badde9ad9fca8bf8d080ba310e7e20bc8f002d",
+        "72eedc47047d62660f532ccb5a767c09392e5d1d",
+        "c32266a23b1e848bc1d61f3d63e67ee6a37ce206"
       ],
       "meta": {
         "purpose": "Enforce and dispatch public skill catalogue refreshes"
