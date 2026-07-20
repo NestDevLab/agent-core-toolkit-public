@@ -16,6 +16,15 @@ Use a name that makes the ownership boundary clear while keeping public skills p
 
 A skill rename updates its directory, `SKILL.md` frontmatter `name`, co-located agent metadata, and internal self-references together.
 
+## Rename rollout checks
+
+- Re-grep every legacy name across consumers at execution time; a pre-computed reference
+  inventory goes stale as soon as other work merges.
+- Audit profile/consumer configs for source paths, pinned or detached refs, and wrong source
+  repositories: renamed selects fail against pre-rename snapshots.
+- Verify installed-copy drift by normalizing old names to new in a scratch copy and re-diffing
+  against the source: an empty residue proves pure rename, making forced replacement safe.
+
 ## Rules and roles
 
 Global rules contain only cross-role invariants. Role-specific guidance belongs in role fragments and is consumed by the relevant subagent or role skill.
