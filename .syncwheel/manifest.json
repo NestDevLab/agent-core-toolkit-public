@@ -49,7 +49,9 @@
       "target_remote": "origin",
       "target_branch": "main",
       "integration_branch": "main-integration",
-      "commits": [],
+      "commits": [
+        "34badde9ad9fca8bf8d080ba310e7e20bc8f002d"
+      ],
       "meta": {
         "purpose": "Enforce and dispatch public skill catalogue refreshes"
       }
