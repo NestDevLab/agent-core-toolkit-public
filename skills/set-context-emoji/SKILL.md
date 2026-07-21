@@ -7,8 +7,8 @@ description: Manually apply a meaningful emoji prefix to a session, chat, or cha
 
 ## Workflow
 
-1. Identify the current conversation and read its title, description, and immediate task context. If the target is unclear, ask; do not rename a different channel.
-2. Infer one concise, widely supported emoji from the work's purpose. Treat development, review, planning, research, operations, documentation, and conversation as cues, not a fixed mapping. Prefer the most specific meaning; do not use a platform or product logo.
-3. Preserve the title text. Keep a fitting leading emoji; replace one conflicting leading emoji; otherwise prepend the chosen emoji and one space. Do not stack prefixes.
-4. Use the harness's actual title or channel-rename operation. Invoke the skill only on user request; do not claim support from the platform name alone. If no authorized update operation is available, report the proposed title without changing anything.
-5. Verify the returned title. Report the applied emoji and final title, or the exact reason no update occurred.
+1. Resolve the current session or channel with its native title tool. In Codex, use `set_thread_title`. Otherwise search exposed tools for the host-native title or rename operation; never substitute another host's threads, API, or local storage.
+2. If native identity or an authorized rename operation is unavailable, report that exact limitation and do not rename anything.
+3. Infer one concise, widely supported emoji from the work's purpose. Cues include development, review, planning, research, operations, documentation, and conversation; prefer the most specific meaning and never use a product logo.
+4. Preserve the title text. Keep a fitting leading emoji; replace one conflicting leading emoji; otherwise prepend the chosen emoji and one space. Do not stack prefixes.
+5. Invoke the skill only on user request. Rename through the native operation, then read back the title and report the emoji and final title.
