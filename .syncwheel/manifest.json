@@ -71,6 +71,20 @@
       "meta": {
         "purpose": "Add a manual catalogue refresh verification trigger"
       }
+    },
+    {
+      "id": "codex-native-title",
+      "branch": "pr/codex-native-title",
+      "base": "origin/main",
+      "target_remote": "origin",
+      "target_branch": "main",
+      "integration_branch": "main-integration",
+      "commits": [
+        "46de45ff8e0eeec44e239816c641b94b49f7301e"
+      ],
+      "meta": {
+        "purpose": "Use host-native title operations for context emoji"
+      }
     }
   ],
   "syncwheel_worktree_root": "var/syncwheel",
