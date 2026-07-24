@@ -13,7 +13,8 @@
     "stacks": [
       "skill-rename-rollout",
       "role-skill-rollout",
-      "visual-title-project-topic"
+      "visual-title-project-topic",
+      "public-visual-title-boundary"
     ]
   },
   "stacks": [
@@ -55,6 +56,20 @@
       ],
       "meta": {
         "purpose": "Project and topic visual title format"
+      }
+    },
+    {
+      "id": "public-visual-title-boundary",
+      "branch": "fix/public-visual-title-boundary",
+      "base": "origin/main",
+      "target_remote": "origin",
+      "target_branch": "main",
+      "integration_branch": "main-integration",
+      "commits": [
+        "81122d18c673a7ac86ed3492608293328f319a90"
+      ],
+      "meta": {
+        "purpose": "Remove private example from public visual-title skill"
       }
     }
   ],
