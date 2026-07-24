@@ -11,10 +11,12 @@ on:
   pull_request:
     paths:
       - "skills/**"
+      - ".syncwheel/manifest.json"
   push:
     branches: [main]
     paths:
       - "skills/**"
+      - ".syncwheel/manifest.json"
 
 permissions:
   contents: read
