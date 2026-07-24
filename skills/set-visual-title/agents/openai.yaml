@@ -1,0 +1,4 @@
+interface:
+  display_name: "Set Visual Title"
+  short_description: "Refresh a session title with visual context"
+  default_prompt: "Use $set-visual-title to give this conversation a clear title and fitting emoji."
