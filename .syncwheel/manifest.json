@@ -50,7 +50,9 @@
       "target_remote": "origin",
       "target_branch": "main",
       "integration_branch": "main-integration",
-      "commits": [],
+      "commits": [
+        "35c500a05e5628dfd3f3c0d8e3f57b9d345053d0"
+      ],
       "meta": {
         "purpose": "Project and topic visual title format"
       }
