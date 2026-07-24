@@ -12,7 +12,8 @@
     "strategy": "cherry-pick",
     "stacks": [
       "skill-rename-rollout",
-      "role-skill-rollout"
+      "role-skill-rollout",
+      "visual-title-project-topic"
     ]
   },
   "stacks": [
@@ -40,6 +41,18 @@
       "commits": [],
       "meta": {
         "purpose": "Composable role adoption skills and workspace guidance"
+      }
+    },
+    {
+      "id": "visual-title-project-topic",
+      "branch": "feat/visual-title-project-topic",
+      "base": "origin/main",
+      "target_remote": "origin",
+      "target_branch": "main",
+      "integration_branch": "main-integration",
+      "commits": [],
+      "meta": {
+        "purpose": "Project and topic visual title format"
       }
     }
   ],
