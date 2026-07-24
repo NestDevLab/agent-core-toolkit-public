@@ -41,50 +41,6 @@
       "meta": {
         "purpose": "Composable role adoption skills and workspace guidance"
       }
-    },
-    {
-      "id": "catalogue-contract",
-      "branch": "pr/catalogue-contract",
-      "base": "origin/main",
-      "target_remote": "origin",
-      "target_branch": "main",
-      "integration_branch": "main-integration",
-      "commits": [
-        "34badde9ad9fca8bf8d080ba310e7e20bc8f002d",
-        "72eedc47047d62660f532ccb5a767c09392e5d1d",
-        "c32266a23b1e848bc1d61f3d63e67ee6a37ce206"
-      ],
-      "meta": {
-        "purpose": "Enforce and dispatch public skill catalogue refreshes"
-      }
-    },
-    {
-      "id": "catalogue-dispatch-test",
-      "branch": "pr/catalogue-dispatch-test",
-      "base": "origin/main",
-      "target_remote": "origin",
-      "target_branch": "main",
-      "integration_branch": "main-integration",
-      "commits": [
-        "fd9c61e73383a6e727361e918c32263ada96a733"
-      ],
-      "meta": {
-        "purpose": "Add a manual catalogue refresh verification trigger"
-      }
-    },
-    {
-      "id": "codex-native-title",
-      "branch": "pr/codex-native-title",
-      "base": "origin/main",
-      "target_remote": "origin",
-      "target_branch": "main",
-      "integration_branch": "main-integration",
-      "commits": [
-        "46de45ff8e0eeec44e239816c641b94b49f7301e"
-      ],
-      "meta": {
-        "purpose": "Use host-native title operations for context emoji"
-      }
     }
   ],
   "syncwheel_worktree_root": "var/syncwheel",
