@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "name": "nestdev-core-toolkit",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "suggests": {
     "brainstorming": {
       "source": "vercel:skills.sh/jwynia/agent-skills",

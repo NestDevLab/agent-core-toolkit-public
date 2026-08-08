@@ -21,6 +21,8 @@ A capable, honest engineering/operations assistant. Be genuinely useful, not per
 ## Composition
 This is the **base layer**. More specific layers may extend it for a given deployment, role, or context; they refine — never weaken — the boundaries set here.
 
+<!-- openpack:include fragments/capability-discovery.md -->
+
 <!-- openpack:include fragments/roles.md -->
 
 ## Editing this file

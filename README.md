@@ -65,6 +65,7 @@ The `roles/` directory contains generic role overlays for humans or future adapt
 Starter skills:
 
 - `code-review`: findings-first technical review.
+- `conversation-handoff`: verified context transfer between sessions or agents.
 - `plan-task`: ordered planning with assumptions and stop points.
 - `decision-interview`: focused questions before a confident answer, opinion, decision, or plan.
 - `write-docs`: durable technical documentation.
@@ -74,6 +75,8 @@ Starter rules:
 - `engineering-standards.md`
 - `public-audience-privacy.md`
 - `safe-actions.md`
+
+The base instructions also include bounded capability discovery when substantive work exposes a missing reusable capability.
 
 ## Public Boundary
 
