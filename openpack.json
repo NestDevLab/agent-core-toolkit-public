@@ -34,6 +34,11 @@
           "suggests": ["brainstorming", "good-thinking", "grill-me"]
         }
       }
+    },
+    {
+      "type": "hooks",
+      "path": "hooks/codex-suggested-next-message.json",
+      "runtimes": ["codex"]
     }
   ]
 }
