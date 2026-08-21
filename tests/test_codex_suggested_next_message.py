@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import unittest
 from pathlib import Path
 
@@ -10,6 +11,7 @@ SCRIPT = (
     / "scripts"
     / "suggest_next_message.py"
 )
+HOOK_CONFIG = Path(__file__).parents[1] / "hooks" / "codex-suggested-next-message.json"
 SPEC = importlib.util.spec_from_file_location("codex_suggested_next_message", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader
@@ -87,6 +89,14 @@ class SuggestedNextMessageTest(unittest.TestCase):
         self.assertEqual(child[MODULE.ACTIVE_ENV], "1")
         self.assertNotIn("OPENAI_API_KEY", child)
         self.assertNotIn(MODULE.CONTEXT_ENV, child)
+
+    def test_hook_does_not_automatically_execute_a_project_controlled_script(self):
+        config = json.loads(HOOK_CONFIG.read_text(encoding="utf-8"))
+        command = config["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"]
+
+        self.assertIn("CODEX_SUGGESTED_NEXT_MESSAGE_COMMAND", command)
+        self.assertIn("${HOME}/.agents/skills", command)
+        self.assertNotIn("${PWD}", command)
 
 
 if __name__ == "__main__":

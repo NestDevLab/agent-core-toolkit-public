@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ \"${CODEX_SUGGESTED_NEXT_MESSAGE_ENABLED:-0}\" != \"1\" ]; then exit 0; fi\nif [ -n \"${CODEX_SUGGESTED_NEXT_MESSAGE_COMMAND:-}\" ] && [ -f \"${CODEX_SUGGESTED_NEXT_MESSAGE_COMMAND}\" ]; then exec python3 \"${CODEX_SUGGESTED_NEXT_MESSAGE_COMMAND}\"; fi\nlocal_hook=\"${PWD}/.agents/skills/codex-suggested-next-message/scripts/suggest_next_message.py\"\nuser_hook=\"${HOME}/.agents/skills/codex-suggested-next-message/scripts/suggest_next_message.py\"\nif [ -f \"$local_hook\" ]; then exec python3 \"$local_hook\"; fi\nif [ -f \"$user_hook\" ]; then exec python3 \"$user_hook\"; fi\nexit 0",
+            "command": "if [ \"${CODEX_SUGGESTED_NEXT_MESSAGE_ENABLED:-0}\" != \"1\" ]; then exit 0; fi\nif [ -n \"${CODEX_SUGGESTED_NEXT_MESSAGE_COMMAND:-}\" ] && [ -f \"${CODEX_SUGGESTED_NEXT_MESSAGE_COMMAND}\" ]; then exec python3 \"${CODEX_SUGGESTED_NEXT_MESSAGE_COMMAND}\"; fi\nuser_hook=\"${HOME}/.agents/skills/codex-suggested-next-message/scripts/suggest_next_message.py\"\nif [ -f \"$user_hook\" ]; then exec python3 \"$user_hook\"; fi\nexit 0",
             "timeout": 25,
             "statusMessage": "Preparing a suggested next message",
             "additionalContextLimit": 1024

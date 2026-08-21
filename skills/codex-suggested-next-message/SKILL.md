@@ -37,10 +37,18 @@ start Codex with:
 CODEX_SUGGESTED_NEXT_MESSAGE_ENABLED=1 codex
 ```
 
-The hook needs Python 3.9+ and the `codex` CLI. A project-local install resolves
-the companion script from `.agents/skills`; a user-level install resolves it
-from `~/.agents/skills`. Set `CODEX_SUGGESTED_NEXT_MESSAGE_COMMAND` to an
-absolute script path when either layout is unsuitable.
+The hook needs Python 3.9+ and the `codex` CLI. A user-level install resolves
+the companion script from `~/.agents/skills`. For a project-local install, name
+that script explicitly when starting Codex:
+
+```sh
+CODEX_SUGGESTED_NEXT_MESSAGE_ENABLED=1 \
+CODEX_SUGGESTED_NEXT_MESSAGE_COMMAND="$PWD/.agents/skills/codex-suggested-next-message/scripts/suggest_next_message.py" \
+codex
+```
+
+The hook deliberately does not discover scripts below the current repository:
+a user-level hook must not automatically execute a repository-controlled path.
 
 ## Context boundary
 
