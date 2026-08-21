@@ -50,13 +50,35 @@ agentwheel sync github:NestDevLab/agent-core-toolkit-public --adapter openclaw -
 
 agentwheel supports bundled adapters such as `openclaw`, `claude`, `codex`, `hermes`, and `copilot`, plus custom/private adapters.
 
+## Codex Suggested Next Message Hook
+
+The package includes a Codex-only `UserPromptSubmit` hook that can append a
+copyable **Suggested next message** block to the end of a response. It is
+installed inert and performs no model call until Codex is started with:
+
+```sh
+CODEX_SUGGESTED_NEXT_MESSAGE_ENABLED=1 codex
+```
+
+When enabled, it runs an ephemeral, read-only `gpt-5.6-luna` child at `low`
+reasoning effort. The child receives the newest prompt and may receive a
+compact, explicitly supplied context summary through
+`CODEX_SUGGESTED_NEXT_MESSAGE_CONTEXT`. It never reads internal Codex session
+files or retains the prompt, summary, or generated suggestion after the hook
+finishes. Failures and timeouts leave the main response unchanged.
+
+Review and trust the generated Codex hook before installation. See
+[`skills/codex-suggested-next-message/SKILL.md`](skills/codex-suggested-next-message/SKILL.md)
+for prerequisites, context limits, and the optional script-path override.
+
 ## agentwheel Package
 
-`agentwheel.json` exposes:
+`openpack.json` exposes:
 
 - `instructions` -> `AGENTS.md`
 - `rules` -> `rules/`
 - `skills` -> `skills/`
+- `hooks` -> Codex `UserPromptSubmit` configuration
 
 The `roles/` directory contains generic role overlays for humans or future adapter support. It is not currently mapped as an agentwheel `subagents` artifact because this repository stores roles as nested `roles/<role>/AGENTS.md` folders, while the current package manifest flow expects directly installable files or supported artifact directories.
 
