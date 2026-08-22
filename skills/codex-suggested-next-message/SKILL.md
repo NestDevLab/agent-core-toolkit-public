@@ -6,17 +6,17 @@ allowed-tools: [Bash]
 
 # Codex Suggested Next Message
 
-This skill supplies the executable companion for the `UserPromptSubmit` hook in
+This skill supplies the executable companion for the `Stop` hook in
 `hooks/codex-suggested-next-message.json`. The hook stays inactive until
 `CODEX_SUGGESTED_NEXT_MESSAGE_ENABLED=1` is present in the environment that
 starts Codex.
 
 ## Behavior
 
-For each submitted prompt, the hook asks `gpt-5.6-luna` at `low` reasoning
-effort for one concise candidate for the user's next message. It then adds an
-`additionalContext` instruction that makes the main Codex response end with a
-copyable Markdown block:
+After each completed response, the hook gives `gpt-5.6-luna` at `low` reasoning
+effort only the latest user context and bounded final answer. It then requests
+one concise candidate for the user's next message and uses one guarded Stop
+continuation to append this copyable Markdown block:
 
 ````text
 ### Suggested next message
@@ -26,7 +26,8 @@ copyable Markdown block:
 ````
 
 The hook is fail-open: a missing dependency, timeout, invalid model output, or
-unsupported event produces no suggestion and never blocks the main turn.
+unsupported event produces no suggestion and never blocks the main turn. The
+`stop_hook_active` guard prevents a second continuation.
 
 ## Enable
 
@@ -52,11 +53,11 @@ a user-level hook must not automatically execute a repository-controlled path.
 
 ## Context boundary
 
-By default, Luna receives only the newly submitted prompt. An authorized
-integration may set `CODEX_SUGGESTED_NEXT_MESSAGE_CONTEXT` to a compact,
-redacted conversation summary; the hook limits it to 12,000 characters and
-does not write it to persistent storage. Do not point the hook at internal
-session files or unbounded conversation transcripts.
+By default, Luna receives the latest user message extracted from only the
+bounded tail of the Stop transcript plus the final assistant answer. An
+authorized integration may also set `CODEX_SUGGESTED_NEXT_MESSAGE_CONTEXT` to
+compact context; all inputs are capped and are not written to persistent
+storage. The hook never loads an unbounded transcript.
 
 The Luna child is ephemeral, runs from an empty temporary directory, ignores
 user configuration and rules, and uses a read-only sandbox. It is marked with

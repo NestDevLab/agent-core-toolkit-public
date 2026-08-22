@@ -4,7 +4,8 @@
     "canonical_remote": "origin",
     "publication_remote": "fork",
     "base_branch": "main",
-    "base_ref": "origin/main"
+    "base_ref": "origin/main",
+    "integration_membership": "legacy"
   },
   "integration": {
     "branch": "main-integration",
@@ -30,6 +31,10 @@
       ],
       "meta": {
         "purpose": "Domain-prefixed skills and role system rollout"
+      },
+      "state": "published",
+      "publication": {
+        "enabled": true
       }
     },
     {
@@ -42,6 +47,10 @@
       "commits": [],
       "meta": {
         "purpose": "Composable role adoption skills and workspace guidance"
+      },
+      "state": "published",
+      "publication": {
+        "enabled": true
       }
     },
     {
@@ -56,6 +65,10 @@
       ],
       "meta": {
         "purpose": "Project and topic visual title format"
+      },
+      "state": "published",
+      "publication": {
+        "enabled": true
       }
     },
     {
@@ -70,9 +83,33 @@
       ],
       "meta": {
         "purpose": "Remove private example from public visual-title skill"
+      },
+      "state": "published",
+      "publication": {
+        "enabled": true
+      }
+    },
+    {
+      "id": "codex-suggested-post-response",
+      "branch": "codex/suggested-post-response",
+      "base": "origin/main",
+      "target_remote": "origin",
+      "target_branch": "main",
+      "integration_branch": "main-integration",
+      "commits": [
+        "30c7591b0faf04cb0d3568c558ce705d1918051e"
+      ],
+      "state": "published",
+      "publication": {
+        "enabled": true
+      },
+      "meta": {
+        "purpose": "Context-aware post-response suggested message hook"
       }
     }
   ],
   "syncwheel_worktree_root": "var/syncwheel",
-  "syncwheel_tracking": "git-tracked"
+  "syncwheel_tracking": "git-tracked",
+  "repository_mode": "delivery",
+  "channels": []
 }
