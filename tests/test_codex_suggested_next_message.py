@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -36,32 +37,83 @@ class SuggestedNextMessageTest(unittest.TestCase):
         self.assertIsNone(output)
         self.assertFalse(invoked)
 
-    def test_hook_appends_copyable_box_through_additional_context(self):
+    def test_hook_requests_one_post_response_continuation(self):
         output = MODULE.run_hook(
-            {"hook_event_name": "UserPromptSubmit", "prompt": "Update the documentation."},
+            {
+                "hook_event_name": "Stop",
+                "last_assistant_message": "The capital is Canberra.",
+            },
             {MODULE.ENABLE_ENV: "1", MODULE.CONTEXT_ENV: "A documentation-only task."},
             lambda *_args: "Please make the documentation change and show the diff.",
         )
 
         self.assertIsNotNone(output)
-        self.assertEqual("UserPromptSubmit", output["hookSpecificOutput"]["hookEventName"])
-        additional_context = output["hookSpecificOutput"]["additionalContext"]
-        self.assertIn("### Suggested next message", additional_context)
-        self.assertIn("```text\nPlease make the documentation change and show the diff.\n```", additional_context)
-        self.assertIn("At the very end", additional_context)
-        self.assertIn("untrusted display text", additional_context)
+        self.assertEqual("block", output["decision"])
+        reason = output["reason"]
+        self.assertIn("### Suggested next message", reason)
+        self.assertIn("```text\nPlease make the documentation change and show the diff.\n```", reason)
+        self.assertIn("previous answer unchanged", reason)
+        self.assertIn("untrusted display text", reason)
+
+    def test_stop_uses_latest_user_context_and_bounded_answer(self):
+        records = [
+            {"payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "older"}]}},
+            {"payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "Qual è la capitale? A) Sydney B) Canberra"}]}},
+        ]
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8") as transcript:
+            transcript.write("\n".join(json.dumps(record) for record in records))
+            transcript.flush()
+            calls = []
+
+            def invoke(prompt, answer, _environment):
+                calls.append((prompt, answer))
+                return "B) Canberra"
+
+            MODULE.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "transcript_path": transcript.name,
+                    "last_assistant_message": "La risposta è B) Canberra.",
+                },
+                {MODULE.ENABLE_ENV: "1"},
+                invoke,
+            )
+
+        self.assertEqual(1, len(calls))
+        self.assertIn("Qual è la capitale?", calls[0][0])
+        self.assertNotIn("older", calls[0][0])
+        self.assertEqual("La risposta è B) Canberra.", calls[0][1])
 
     def test_recursive_child_and_non_user_events_are_ignored(self):
         invoke = lambda *_args: "This must not be emitted."
-        payload = {"hook_event_name": "UserPromptSubmit", "prompt": "Any task"}
+        payload = {"hook_event_name": "Stop", "last_assistant_message": "Any answer"}
 
         self.assertIsNone(MODULE.run_hook(payload, {MODULE.ENABLE_ENV: "1", MODULE.ACTIVE_ENV: "1"}, invoke))
-        self.assertIsNone(MODULE.run_hook({"hook_event_name": "Stop", "prompt": "Any task"}, {MODULE.ENABLE_ENV: "1"}, invoke))
+        self.assertIsNone(
+            MODULE.run_hook(
+                {"hook_event_name": "Stop", "stop_hook_active": True, "last_assistant_message": "Any answer"},
+                {MODULE.ENABLE_ENV: "1"},
+                invoke,
+            )
+        )
+        self.assertIsNone(
+            MODULE.run_hook(
+                {"hook_event_name": "UserPromptSubmit", "prompt": "Any task"},
+                {MODULE.ENABLE_ENV: "1"},
+                invoke,
+            )
+        )
 
     def test_unsafe_or_oversized_model_output_is_rejected(self):
         self.assertIsNone(MODULE.normalize_suggestion("```text\nunsafe\n```"))
         self.assertIsNone(MODULE.normalize_suggestion("x" * (MODULE.MAX_SUGGESTION_CHARS + 1)))
         self.assertEqual("Ask for the validation results.", MODULE.normalize_suggestion(" Ask for the validation results. "))
+
+    def test_luna_prompt_keeps_inputs_bounded(self):
+        prompt = MODULE.model_prompt("u" * 10_000, "a" * 10_000)
+
+        self.assertLessEqual(len(prompt), MODULE.MAX_PROMPT_CHARS + MODULE.MAX_CONTEXT_CHARS + 320)
+        self.assertIn("one useful concise follow-up", prompt)
 
     def test_child_is_ephemeral_and_read_only(self):
         command = MODULE.child_command(Path("/tmp/output.txt"), "/tmp/empty")
@@ -92,7 +144,7 @@ class SuggestedNextMessageTest(unittest.TestCase):
 
     def test_hook_does_not_automatically_execute_a_project_controlled_script(self):
         config = json.loads(HOOK_CONFIG.read_text(encoding="utf-8"))
-        command = config["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"]
+        command = config["hooks"]["Stop"][0]["hooks"][0]["command"]
 
         self.assertIn("CODEX_SUGGESTED_NEXT_MESSAGE_COMMAND", command)
         self.assertIn("${HOME}/.agents/skills", command)

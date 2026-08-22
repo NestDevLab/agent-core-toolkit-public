@@ -1,16 +1,15 @@
 {
-  "description": "Opt-in Codex hook that appends a model-generated suggested next message.",
+  "description": "Opt-in Codex hook that appends a context-aware suggested next message after each response.",
   "hooks": {
-    "UserPromptSubmit": [
+    "Stop": [
       {
         "matcher": "",
         "hooks": [
           {
             "type": "command",
             "command": "if [ \"${CODEX_SUGGESTED_NEXT_MESSAGE_ENABLED:-0}\" != \"1\" ]; then exit 0; fi\nif [ -n \"${CODEX_SUGGESTED_NEXT_MESSAGE_COMMAND:-}\" ] && [ -f \"${CODEX_SUGGESTED_NEXT_MESSAGE_COMMAND}\" ]; then exec python3 \"${CODEX_SUGGESTED_NEXT_MESSAGE_COMMAND}\"; fi\nuser_hook=\"${HOME}/.agents/skills/codex-suggested-next-message/scripts/suggest_next_message.py\"\nif [ -f \"$user_hook\" ]; then exec python3 \"$user_hook\"; fi\nexit 0",
-            "timeout": 25,
-            "statusMessage": "Preparing a suggested next message",
-            "additionalContextLimit": 1024
+            "timeout": 20,
+            "statusMessage": "Preparing a suggested next message"
           }
         ]
       }
