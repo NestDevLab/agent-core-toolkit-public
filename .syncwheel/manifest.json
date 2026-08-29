@@ -106,6 +106,22 @@
       "meta": {
         "purpose": "Context-aware post-response suggested message hook"
       }
+    },
+    {
+      "id": "skill-evolution-v01",
+      "branch": "pr/skill-evolution-v01",
+      "base": "origin/main",
+      "target_remote": "origin",
+      "target_branch": "main",
+      "integration_branch": "main-integration",
+      "commits": [],
+      "state": "published",
+      "publication": {
+        "enabled": true
+      },
+      "meta": {
+        "purpose": "Skill Evolution v0.1"
+      }
     }
   ],
   "syncwheel_worktree_root": "var/syncwheel",

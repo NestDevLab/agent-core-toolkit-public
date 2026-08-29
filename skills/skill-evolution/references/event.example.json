@@ -1,0 +1,29 @@
+{
+  "schema": "skill-evolution.event.v1",
+  "signalKind": "deterministic-improvement",
+  "target": {
+    "sourceKind": "owned",
+    "source": "github:example/toolkit",
+    "revision": "abc123",
+    "artifact": "skills/demo/SKILL.md"
+  },
+  "baseHash": "sha256:base",
+  "check": "format-json",
+  "evidenceFingerprint": "sha256:evidence",
+  "summary": "The registered formatter produces a stable correction.",
+  "enforcement": {
+    "disposition": "script-created",
+    "affectedPaths": [
+      "skills/demo/SKILL.md",
+      "scripts/fix_demo.py",
+      "tests/test_fix_demo.py"
+    ],
+    "scriptPaths": ["scripts/fix_demo.py"],
+    "testPaths": ["tests/test_fix_demo.py"],
+    "idempotence": {
+      "firstRunHash": "sha256:stable",
+      "secondRunHash": "sha256:stable",
+      "secondRunChanged": false
+    }
+  }
+}

@@ -1,7 +1,20 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "nestdev-core-toolkit",
-  "version": "0.3.2",
+  "version": "0.4.0",
+  "requires": {
+    "self-improve": {
+      "source": "github:eai-org/agent-toolkit",
+      "select": ["skills/self-improve"]
+    }
+  },
+  "compositionRules": [
+    {
+      "target": "skills/*",
+      "include": "fragments/skill-evolution.md",
+      "exclude": ["nestdev-core-toolkit:skills/skill-evolution"]
+    }
+  ],
   "suggests": {
     "brainstorming": {
       "source": "vercel:skills.sh/jwynia/agent-skills",
@@ -39,6 +52,21 @@
       "type": "hooks",
       "path": "hooks/codex-suggested-next-message.json",
       "runtimes": ["codex"]
+    },
+    {
+      "type": "hooks",
+      "path": "hooks/skill-evolution-codex.json",
+      "runtimes": ["codex"]
+    },
+    {
+      "type": "hooks",
+      "path": "hooks/skill-evolution-claude.json",
+      "runtimes": ["claude"]
+    },
+    {
+      "type": "hooks",
+      "path": "hooks/copilot",
+      "runtimes": ["copilot"]
     }
   ]
 }
