@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUseFailure": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ \"${SKILL_EVOLUTION_HOOKS_ENABLED:-0}\" != \"1\" ]; then exit 0; fi\nobserver=\"${HOME}/.claude/skills/skill-evolution/scripts/observe_hook.py\"\nif [ -f \"$observer\" ]; then SKILL_EVOLUTION_HARNESS=claude exec python3 \"$observer\"; fi\nexit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

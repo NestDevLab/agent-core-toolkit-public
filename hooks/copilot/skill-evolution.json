@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "errorOccurred": [
+      {
+        "type": "command",
+        "bash": "if [ \"${SKILL_EVOLUTION_HOOKS_ENABLED:-0}\" != \"1\" ]; then exit 0; fi; observer=\"${HOME}/.copilot/skills/skill-evolution/scripts/observe_hook.py\"; if [ -f \"$observer\" ]; then SKILL_EVOLUTION_HARNESS=copilot exec python3 \"$observer\"; fi; exit 0",
+        "timeoutSec": 5
+      }
+    ]
+  }
+}

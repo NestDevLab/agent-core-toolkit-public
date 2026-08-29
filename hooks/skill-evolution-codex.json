@@ -1,0 +1,18 @@
+{
+  "description": "Opt-in, fail-open observer for bounded skill-evolution failure fingerprints.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ \"${SKILL_EVOLUTION_HOOKS_ENABLED:-0}\" != \"1\" ]; then exit 0; fi\nobserver=\"${HOME}/.agents/skills/skill-evolution/scripts/observe_hook.py\"\nif [ -f \"$observer\" ]; then SKILL_EVOLUTION_HARNESS=codex exec python3 \"$observer\"; fi\nexit 0",
+            "timeout": 5,
+            "statusMessage": "Observing deterministic improvement signals"
+          }
+        ]
+      }
+    ]
+  }
+}

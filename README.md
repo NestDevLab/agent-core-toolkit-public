@@ -8,7 +8,7 @@ It provides a canonical `AGENTS.md` contract, generic role overlays, starter ski
 
 ```text
 AGENTS.md                         # Base public agent contract
-agentwheel.json                   # agentwheel package manifest
+openpack.json                     # OpenPack package manifest
 roles/<role>/AGENTS.md            # Generic role overlays
 skills/<skill>/SKILL.md           # Reusable public skills
 rules/<rule>.md                   # Runtime-neutral rule snippets
@@ -79,7 +79,20 @@ for prerequisites, context limits, and the optional script-path override.
 - `instructions` -> `AGENTS.md`
 - `rules` -> `rules/`
 - `skills` -> `skills/`
-- `hooks` -> Codex `Stop` configuration
+- `hooks` -> opt-in Codex, Claude, and Copilot configurations
+
+## Skill Evolution
+
+OpenPack v3 injects `fragments/skill-evolution.md` into every rendered skill when this toolkit is
+a configured graph root, except the evolution skill itself. The `skill-evolution` composite resolves authoritative source and
+ownership before preparing any improvement. Its runner validates, deduplicates, and classifies
+bounded events with explicit `--dry-run` and `--apply` modes. Deterministic candidates require an
+authoritative script, focused tests, policy-bounded paths, and second-run idempotence proof.
+
+Failure observers for Codex, Claude, and Copilot are installed inert. Set
+`SKILL_EVOLUTION_HOOKS_ENABLED=1` only after reviewing the generated hook merge. Observers retain
+fingerprints, not prompts, transcripts, commands, or tool output. OpenClaw and Hermes observers are
+not part of v0.1.
 
 The `roles/` directory contains generic role overlays for humans or future adapter support. It is not currently mapped as an agentwheel `subagents` artifact because this repository stores roles as nested `roles/<role>/AGENTS.md` folders, while the current package manifest flow expects directly installable files or supported artifact directories.
 
