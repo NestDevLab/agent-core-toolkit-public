@@ -195,6 +195,30 @@ class SkillEvolutionTest(unittest.TestCase):
             with self.assertRaisesRegex(SCOPE.ScopeError, "must target only"):
                 SCOPE.validate_manifest(invalid)
 
+    def test_graph_lock_audit_detects_new_skill_coverage_and_native_runtime_leaks(self):
+        lock = {
+            "canonical": {
+                "artifacts": [
+                    {
+                        "type": "skills",
+                        "name": "future-skill",
+                        "composedFrom": [{"selector": "core:fragments/skill-evolution.md"}],
+                    }
+                ]
+            }
+        }
+        with tempfile.TemporaryDirectory() as root:
+            path = self.write_json(root, "graph-lock.json", lock)
+            self.assertEqual(1, SCOPE.validate_graph_lock(path, "codex"))
+            with self.assertRaisesRegex(SCOPE.ScopeError, "native runtime openclaw"):
+                SCOPE.validate_graph_lock(path, "openclaw")
+
+            lock["canonical"]["artifacts"][0]["composedFrom"] = []
+            self.write_json(root, "graph-lock.json", lock)
+            self.assertEqual(1, SCOPE.validate_graph_lock(path, "openclaw"))
+            with self.assertRaisesRegex(SCOPE.ScopeError, "lacks skill-evolution"):
+                SCOPE.validate_graph_lock(path, "claude")
+
 
 if __name__ == "__main__":
     unittest.main()
