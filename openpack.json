@@ -5,6 +5,7 @@
   "requires": {
     "self-improve": {
       "source": "github:eai-org/agent-toolkit",
+      "ref": "main",
       "select": ["skills/self-improve"]
     }
   },
