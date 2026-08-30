@@ -89,10 +89,10 @@ ownership before preparing any improvement. Its runner validates, deduplicates, 
 bounded events with explicit `--dry-run` and `--apply` modes. Deterministic candidates require an
 authoritative script, focused tests, policy-bounded paths, and second-run idempotence proof.
 
-Failure observers for Codex, Claude, and Copilot are installed inert. Set
-`SKILL_EVOLUTION_HOOKS_ENABLED=1` only after reviewing the generated hook merge. Observers retain
-fingerprints, not prompts, transcripts, commands, or tool output. OpenClaw and Hermes observers are
-not part of v0.1.
+Selecting a Codex or Claude failure-observer hook activates it; omission is the opt-out. The
+standalone observer still requires `SKILL_EVOLUTION_HOOKS_ENABLED=1`. Observers retain fingerprints,
+not prompts, transcripts, commands, or tool output. The Copilot hook stays environment-gated;
+OpenClaw and Hermes observers are not part of v0.1.
 
 The `roles/` directory contains generic role overlays for humans or future adapter support. It is not currently mapped as an agentwheel `subagents` artifact because this repository stores roles as nested `roles/<role>/AGENTS.md` folders, while the current package manifest flow expects directly installable files or supported artifact directories.
 

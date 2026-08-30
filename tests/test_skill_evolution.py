@@ -184,6 +184,15 @@ class SkillEvolutionTest(unittest.TestCase):
             self.assertNotIn("/private/repo", json.dumps(stored))
             self.assertEqual("claude", stored["harness"])
 
+    def test_selected_codex_and_claude_hooks_enable_the_bounded_observer(self):
+        root = Path(__file__).parents[1]
+        for name in ("codex", "claude"):
+            hook = json.loads((root / "hooks" / f"skill-evolution-{name}.json").read_text(encoding="utf-8"))
+            command = json.dumps(hook)
+            self.assertIn("SKILL_EVOLUTION_HOOKS_ENABLED=1", command)
+            self.assertIn(f"SKILL_EVOLUTION_HARNESS={name}", command)
+            self.assertNotIn("SKILL_EVOLUTION_HOOKS_ENABLED:-0", command)
+
     def test_runtime_scope_covers_every_future_skill_and_rejects_openclaw_or_hermes(self):
         manifest = Path(__file__).parents[1] / "openpack.json"
         self.assertEqual(2, SCOPE.validate_manifest(manifest))
