@@ -6,14 +6,16 @@
     "self-improve": {
       "source": "github:eai-org/agent-toolkit",
       "ref": "main",
-      "select": ["skills/self-improve"]
+      "select": ["skills/self-improve"],
+      "runtimes": ["codex", "claude"]
     }
   },
   "compositionRules": [
     {
       "target": "skills/*",
       "include": "fragments/skill-evolution.md",
-      "exclude": ["nestdev-core-toolkit:skills/skill-evolution"]
+      "exclude": ["nestdev-core-toolkit:skills/skill-evolution"],
+      "runtimes": ["codex", "claude"]
     }
   ],
   "suggests": {

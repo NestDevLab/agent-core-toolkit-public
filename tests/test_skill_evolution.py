@@ -7,6 +7,7 @@ from pathlib import Path
 
 SCRIPT = Path(__file__).parents[1] / "skills" / "skill-evolution" / "scripts" / "skill_evolution.py"
 OBSERVER_SCRIPT = Path(__file__).parents[1] / "skills" / "skill-evolution" / "scripts" / "observe_hook.py"
+SCOPE_SCRIPT = Path(__file__).parents[1] / "skills" / "skill-evolution" / "scripts" / "check_runtime_scope.py"
 SPEC = importlib.util.spec_from_file_location("skill_evolution", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader
@@ -15,6 +16,10 @@ OBSERVER_SPEC = importlib.util.spec_from_file_location("skill_evolution_observer
 OBSERVER = importlib.util.module_from_spec(OBSERVER_SPEC)
 assert OBSERVER_SPEC.loader
 OBSERVER_SPEC.loader.exec_module(OBSERVER)
+SCOPE_SPEC = importlib.util.spec_from_file_location("skill_evolution_scope", SCOPE_SCRIPT)
+SCOPE = importlib.util.module_from_spec(SCOPE_SPEC)
+assert SCOPE_SPEC.loader
+SCOPE_SPEC.loader.exec_module(SCOPE)
 
 
 class SkillEvolutionTest(unittest.TestCase):
@@ -178,6 +183,41 @@ class SkillEvolutionTest(unittest.TestCase):
             self.assertNotIn("private output", json.dumps(stored))
             self.assertNotIn("/private/repo", json.dumps(stored))
             self.assertEqual("claude", stored["harness"])
+
+    def test_runtime_scope_covers_every_future_skill_and_rejects_openclaw_or_hermes(self):
+        manifest = Path(__file__).parents[1] / "openpack.json"
+        self.assertEqual(2, SCOPE.validate_manifest(manifest))
+
+        value = json.loads(manifest.read_text(encoding="utf-8"))
+        value["compositionRules"][0]["runtimes"].append("openclaw")
+        with tempfile.TemporaryDirectory() as root:
+            invalid = self.write_json(root, "openpack.json", value)
+            with self.assertRaisesRegex(SCOPE.ScopeError, "must target only"):
+                SCOPE.validate_manifest(invalid)
+
+    def test_graph_lock_audit_detects_new_skill_coverage_and_native_runtime_leaks(self):
+        lock = {
+            "canonical": {
+                "artifacts": [
+                    {
+                        "type": "skills",
+                        "name": "future-skill",
+                        "composedFrom": [{"selector": "core:fragments/skill-evolution.md"}],
+                    }
+                ]
+            }
+        }
+        with tempfile.TemporaryDirectory() as root:
+            path = self.write_json(root, "graph-lock.json", lock)
+            self.assertEqual(1, SCOPE.validate_graph_lock(path, "codex"))
+            with self.assertRaisesRegex(SCOPE.ScopeError, "native runtime openclaw"):
+                SCOPE.validate_graph_lock(path, "openclaw")
+
+            lock["canonical"]["artifacts"][0]["composedFrom"] = []
+            self.write_json(root, "graph-lock.json", lock)
+            self.assertEqual(1, SCOPE.validate_graph_lock(path, "openclaw"))
+            with self.assertRaisesRegex(SCOPE.ScopeError, "lacks skill-evolution"):
+                SCOPE.validate_graph_lock(path, "claude")
 
 
 if __name__ == "__main__":
