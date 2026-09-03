@@ -1,131 +1,30 @@
 {
-  "version": 1,
+  "authority": {
+    "allow": [
+      "source_change"
+    ],
+    "deny": [
+      "destructive_rewrite"
+    ],
+    "mode": "ai-managed"
+  },
+  "channels": [],
   "defaults": {
-    "canonical_remote": "origin",
-    "publication_remote": "fork",
     "base_branch": "main",
     "base_ref": "origin/main",
-    "integration_membership": "legacy"
+    "canonical_remote": "origin",
+    "integration_membership": "legacy",
+    "publication_remote": "origin"
   },
   "integration": {
-    "branch": "main-integration",
     "base": "origin/main",
-    "strategy": "cherry-pick",
-    "stacks": [
-      "skill-rename-rollout",
-      "role-skill-rollout",
-      "visual-title-project-topic",
-      "public-visual-title-boundary"
-    ]
+    "branch": "main-integration",
+    "stacks": [],
+    "strategy": "cherry-pick"
   },
-  "stacks": [
-    {
-      "id": "skill-rename-rollout",
-      "branch": "codex/skill-rename-rollout",
-      "base": "origin/main",
-      "target_remote": "origin",
-      "target_branch": "main",
-      "integration_branch": "main-integration",
-      "commits": [
-        "8d090544e1839715212b0824cb2726dcc081a2b8"
-      ],
-      "meta": {
-        "purpose": "Domain-prefixed skills and role system rollout"
-      },
-      "state": "published",
-      "publication": {
-        "enabled": true
-      }
-    },
-    {
-      "id": "role-skill-rollout",
-      "branch": "codex/role-skill-rollout",
-      "base": "origin/main",
-      "target_remote": "origin",
-      "target_branch": "main",
-      "integration_branch": "main-integration",
-      "commits": [],
-      "meta": {
-        "purpose": "Composable role adoption skills and workspace guidance"
-      },
-      "state": "published",
-      "publication": {
-        "enabled": true
-      }
-    },
-    {
-      "id": "visual-title-project-topic",
-      "branch": "feat/visual-title-project-topic",
-      "base": "origin/main",
-      "target_remote": "origin",
-      "target_branch": "main",
-      "integration_branch": "main-integration",
-      "commits": [
-        "35c500a05e5628dfd3f3c0d8e3f57b9d345053d0"
-      ],
-      "meta": {
-        "purpose": "Project and topic visual title format"
-      },
-      "state": "published",
-      "publication": {
-        "enabled": true
-      }
-    },
-    {
-      "id": "public-visual-title-boundary",
-      "branch": "fix/public-visual-title-boundary",
-      "base": "origin/main",
-      "target_remote": "origin",
-      "target_branch": "main",
-      "integration_branch": "main-integration",
-      "commits": [
-        "81122d18c673a7ac86ed3492608293328f319a90"
-      ],
-      "meta": {
-        "purpose": "Remove private example from public visual-title skill"
-      },
-      "state": "published",
-      "publication": {
-        "enabled": true
-      }
-    },
-    {
-      "id": "codex-suggested-post-response",
-      "branch": "codex/suggested-post-response",
-      "base": "origin/main",
-      "target_remote": "origin",
-      "target_branch": "main",
-      "integration_branch": "main-integration",
-      "commits": [
-        "30c7591b0faf04cb0d3568c558ce705d1918051e"
-      ],
-      "state": "published",
-      "publication": {
-        "enabled": true
-      },
-      "meta": {
-        "purpose": "Context-aware post-response suggested message hook"
-      }
-    },
-    {
-      "id": "skill-evolution-v01",
-      "branch": "pr/skill-evolution-v01",
-      "base": "origin/main",
-      "target_remote": "origin",
-      "target_branch": "main",
-      "integration_branch": "main-integration",
-      "commits": [],
-      "state": "published",
-      "publication": {
-        "enabled": true
-      },
-      "meta": {
-        "purpose": "Skill Evolution v0.1"
-      }
-    }
-  ],
-  "syncwheel_worktree_root": "var/syncwheel",
-  "syncwheel_tracking": "git-tracked",
   "repository_mode": "delivery",
-  "channels": []
+  "stacks": [],
+  "syncwheel_tracking": "git-tracked",
+  "syncwheel_worktree_root": "var/syncwheel",
+  "version": 1
 }
