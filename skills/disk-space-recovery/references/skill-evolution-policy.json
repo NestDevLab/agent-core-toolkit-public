@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "autoPromote": false,
+  "constitutionalPaths": [
+    "skills/disk-space-recovery/SKILL.md",
+    "skills/skill-evolution/**",
+    "fragments/skill-evolution.md",
+    "hooks/**",
+    "openpack.json"
+  ],
+  "deterministicChecks": {
+    "storage-audit-stability": {
+      "allowedPaths": [
+        "skills/disk-space-recovery/scripts/**",
+        "skills/disk-space-recovery/tests/**"
+      ],
+      "transformer": "skills/disk-space-recovery/scripts/storage_audit.py",
+      "checks": [
+        "python3 skills/disk-space-recovery/tests/test_storage_audit.py"
+      ]
+    }
+  },
+  "preflightTargets": []
+}
