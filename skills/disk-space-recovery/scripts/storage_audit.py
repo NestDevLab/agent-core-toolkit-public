@@ -143,7 +143,8 @@ def parse_deleted_open(text: str) -> dict[str, object]:
             continue
         command, pid, _user, fd, file_type, _device, size_off, _nlink, _node, name = fields
         size = _parse_int(size_off) or 0
-        memory_backed = "/memfd:" in name or name.startswith("/dev/shm/")
+        normalized_name = name.lstrip("/")
+        memory_backed = normalized_name.startswith("memfd:") or name.startswith("/dev/shm/")
         rows.append(
             {
                 "command": command[:128],

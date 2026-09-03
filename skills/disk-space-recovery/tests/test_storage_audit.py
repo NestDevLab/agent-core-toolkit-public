@@ -80,10 +80,11 @@ class StorageAuditTests(unittest.TestCase):
         result = MODULE.parse_deleted_open(
             "COMMAND PID USER FD TYPE DEVICE SIZE/OFF NLINK NODE NAME\n"
             "p 1 u 1u REG 0,1 500 0 1 /memfd:x (deleted)\n"
-            "p 2 u 2u REG 8,1 1000 0 2 /tmp/x (deleted)\n"
+            "p 2 u 2u REG 0,1 600 0 2 memfd:doublemapper (deleted)\n"
+            "p 3 u 3u REG 8,1 1000 0 3 /tmp/x (deleted)\n"
         )
-        self.assertEqual(result["count"], 2)
-        self.assertEqual(result["memoryBackedCount"], 1)
+        self.assertEqual(result["count"], 3)
+        self.assertEqual(result["memoryBackedCount"], 2)
         self.assertEqual(len(result["diskBackedCandidates"]), 1)
 
     def test_same_fixture_produces_same_report(self) -> None:
