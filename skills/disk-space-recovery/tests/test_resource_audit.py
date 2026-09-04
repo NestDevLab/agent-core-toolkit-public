@@ -6,8 +6,10 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 SCRIPT = (Path(__file__).parent / ".." / "scripts" / "resource_audit.py").resolve()
 SPEC = importlib.util.spec_from_file_location("resource_audit", SCRIPT)
@@ -16,6 +18,51 @@ MODULE = importlib.util.module_from_spec(SPEC)
 sys.modules["resource_audit"] = MODULE
 SPEC.loader.exec_module(MODULE)
 INVENTORY = json.loads((Path(__file__).parent / ".." / "references" / "resource-maintenance.synthetic.json").read_text())
+
+
+def proxmox_targets(parent_endpoint: str = "synthetic-proxmox") -> list[dict[str, object]]:
+    common = {
+        "authoritativeDocs": [{"path": "docs/synthetic.md", "remoteOnly": True}],
+        "scanRoots": ["/srv/example"],
+        "protectedPaths": ["/srv/example/live.db"],
+        "thresholds": {"diskFreePercent": 15, "memoryAvailablePercent": 10},
+        "operatorCapability": "synthetic-read-only",
+    }
+    parent = {
+        **common,
+        "id": "proxmox-parent",
+        "platform": "proxmox",
+        "transport": "ssh-posix",
+        "endpoint": parent_endpoint,
+        "expectedIdentity": "synthetic-proxmox",
+    }
+    child = {
+        **common,
+        "id": "container-child",
+        "platform": "container",
+        "transport": "proxmox-pct",
+        "containerId": 42,
+        "parent": "proxmox-parent",
+        "expectedIdentity": "synthetic-container",
+    }
+    return [parent, child]
+
+
+def posix_payload(identity: str = "synthetic-container") -> dict[str, object]:
+    return {
+        "identity": identity,
+        "volumes": [{"filesystem": "/dev/root", "available": 50, "blocks": 100, "mountPoint": "/"}],
+        "inodes": [{"filesystem": "/dev/root", "available": 50, "inodes": 100, "mountPoint": "/"}],
+        "memory": {"physical": {"totalBytes": 1000, "availableBytes": 400}, "swap": {"totalBytes": 100, "usedBytes": 20}},
+        "processes": [{"pid": 3, "rssBytes": 800, "name": "worker"}],
+        "psi": {"memory": "some avg10=1"},
+        "oom": {"oom": 2},
+        "cgroups": {"memory.current": "10"},
+        "deletedOpen": [{"pid": 3, "path": "/tmp/deleted", "memoryBacked": False}],
+        "duSummaries": [{"path": "/srv/example", "bytes": 900}],
+        "largeFiles": [],
+        "errors": [],
+    }
 
 
 class Runner:
@@ -58,6 +105,21 @@ class ResourceAuditTests(unittest.TestCase):
         self.assertIn("parent cycle", " ".join(MODULE.validate_inventory(bad)))
         bad = json.loads(json.dumps(INVENTORY)); bad["targets"][0]["parent"] = "windows-lab"; bad["targets"][1]["parent"] = "linux-lab"
         bad["targets"][0]["authoritativeDocs"] = [{"path": "x", "remoteOnly": False}]
+        self.assertTrue(MODULE.validate_inventory(bad))
+
+    def test_inventory_accepts_pct_endpoint_from_valid_parent(self) -> None:
+        inventory = {
+            "schemaVersion": "resource-maintenance.inventory.v1",
+            "environment": "synthetic",
+            "docRoot": ".",
+            "targets": proxmox_targets(),
+        }
+        self.assertEqual(MODULE.validate_inventory(inventory), [])
+        bad = json.loads(json.dumps(inventory))
+        bad["targets"][0]["endpoint"] = "-oProxyCommand=bad"
+        self.assertTrue(MODULE.validate_inventory(bad))
+        bad = json.loads(json.dumps(inventory))
+        bad["targets"][1]["parent"] = "missing"
         self.assertTrue(MODULE.validate_inventory(bad))
 
     def test_inventory_rejects_recursive_secrets_empty_lists_and_path_mismatch(self) -> None:
@@ -114,21 +176,70 @@ class ResourceAuditTests(unittest.TestCase):
         self.assertNotIn("shell=True", SCRIPT.read_text())
 
     def test_posix_and_pct_remote_transports_normalize_json(self) -> None:
-        payload = {"identity": "synthetic-linux", "volumes": [{"filesystem": "/dev/root", "available": 50, "blocks": 100, "mountPoint": "/"}], "inodes": [{"filesystem": "/dev/root", "available": 50, "inodes": 100, "mountPoint": "/"}], "memory": {"physical": {"totalBytes": 1000, "availableBytes": 400}, "swap": {"totalBytes": 100, "usedBytes": 20}}, "processes": [{"pid": 3, "rssBytes": 800, "name": "worker"}], "psi": {"memory": "some avg10=1"}, "oom": {"oom": 2}, "cgroups": {"memory.current": "10"}, "deletedOpen": [{"pid": 3, "path": "/tmp/deleted", "memoryBacked": False}], "duSummaries": [{"path": "/srv/example", "bytes": 900}], "largeFiles": [], "errors": []}
-        for transport in ("ssh-posix", "proxmox-pct"):
-            target = {"id": "remote", "platform": "container" if transport == "proxmox-pct" else "linux", "transport": transport, "endpoint": "synthetic-host", "expectedIdentity": "synthetic-linux", "scanRoots": ["/srv/example"], "protectedPaths": ["/srv/example/live.db"], "containerId": 42} if transport == "proxmox-pct" else {"id": "remote", "platform": "linux", "transport": transport, "endpoint": "synthetic-host", "expectedIdentity": "synthetic-linux", "scanRoots": ["/srv/example"], "protectedPaths": ["/srv/example/live.db"]}
-            seen: list[list[str]] = []
-            def runner(argv: list[str], timeout: int) -> MODULE.CommandResult:
-                seen.append(argv); return MODULE.CommandResult(0, json.dumps(payload))
-            report = MODULE.collect_remote(target, runner=runner)
-            self.assertEqual(report["status"], "available")
-            self.assertEqual(report["filesystems"][0]["mountPoint"], "/")
-            self.assertEqual(report["memory"]["physical"]["availableBytes"], 400)
-            self.assertEqual(report["processes"][0]["pid"], 3)
-            self.assertEqual(report["psi"]["memory"], "some avg10=1")
-            self.assertTrue(report["deletedOpen"])
-            self.assertIn("python3", seen[0]); self.assertNotIn("/bin/sh", seen[0])
+        payload = posix_payload("synthetic-linux")
+        target = {"id": "remote", "platform": "linux", "transport": "ssh-posix", "endpoint": "synthetic-host", "expectedIdentity": "synthetic-linux", "scanRoots": ["/srv/example"], "protectedPaths": ["/srv/example/live.db"]}
+        seen: list[list[str]] = []
+        def runner(argv: list[str], timeout: int) -> MODULE.CommandResult:
+            seen.append(argv); return MODULE.CommandResult(0, json.dumps(payload))
+        report = MODULE.collect_remote(target, runner=runner)
+        self.assertEqual(report["status"], "available")
+        self.assertEqual(report["filesystems"][0]["mountPoint"], "/")
+        self.assertEqual(report["memory"]["physical"]["availableBytes"], 400)
+        self.assertEqual(report["processes"][0]["pid"], 3)
+        self.assertEqual(report["psi"]["memory"], "some avg10=1")
+        self.assertTrue(report["deletedOpen"])
+        self.assertEqual(seen[0][:7], ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "synthetic-host", "python3"])
+
+        targets = proxmox_targets()
+        child = targets[1]
+        payload = posix_payload()
+        seen = []
+        def pct_runner(argv: list[str], timeout: int) -> MODULE.CommandResult:
+            seen.append(argv); return MODULE.CommandResult(0, json.dumps(payload))
+        report = MODULE.audit_target(child, runner=pct_runner, targets=targets)
+        self.assertEqual(report["status"], "available")
+        self.assertEqual(report["identity"], "synthetic-container")
+        self.assertEqual(
+            seen[0][:12],
+            ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "synthetic-proxmox", "pct", "exec", "42", "--", "python3", "-c"],
+        )
+        self.assertEqual(seen[0][12], MODULE.POSIX_SCRIPT)
+        self.assertNotIn("/bin/sh", seen[0])
         compile(MODULE.POSIX_SCRIPT, "resource_audit.POSIX_SCRIPT", "exec")
+
+    def test_pct_missing_or_invalid_parent_fails_before_runner(self) -> None:
+        targets = proxmox_targets()
+        child = targets[1]
+        seen: list[list[str]] = []
+        def runner(argv: list[str], timeout: int) -> MODULE.CommandResult:
+            seen.append(argv); return MODULE.CommandResult(0, json.dumps(posix_payload()))
+        for graph in (None, [child], [targets[0], targets[0], child]):
+            report = MODULE.collect_remote(child, runner=runner, targets=graph)
+            self.assertEqual(report["status"], "blocked")
+        invalid_parent = {**targets[0], "endpoint": "-oProxyCommand=bad"}
+        report = MODULE.collect_remote(child, runner=runner, targets=[invalid_parent, child])
+        self.assertEqual(report["status"], "blocked")
+        wrong_parent = {**targets[0], "platform": "linux"}
+        report = MODULE.collect_remote(child, runner=runner, targets=[wrong_parent, child])
+        self.assertEqual(report["status"], "blocked")
+        self.assertEqual(seen, [])
+
+    def test_command_line_audit_passes_inventory_target_graph(self) -> None:
+        inventory = {
+            "schemaVersion": "resource-maintenance.inventory.v1",
+            "environment": "synthetic",
+            "docRoot": ".",
+            "targets": proxmox_targets(),
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            inventory_path = Path(directory) / "inventory.json"
+            output_path = Path(directory) / "audit.json"
+            inventory_path.write_text(json.dumps(inventory), encoding="utf-8")
+            expected = {"schemaVersion": MODULE.SCHEMA, "status": "blocked"}
+            with patch.object(MODULE, "audit_target", return_value=expected) as audit:
+                self.assertEqual(MODULE.main(["audit", "--inventory", str(inventory_path), "--target", "container-child", "--output", str(output_path)]), 0)
+            audit.assert_called_once_with(inventory["targets"][1], targets=inventory["targets"])
+            self.assertEqual(json.loads(output_path.read_text(encoding="utf-8")), expected)
 
     def test_endpoint_is_checked_before_runner_and_identity_mismatch_is_blocked(self) -> None:
         called = False
@@ -140,10 +251,12 @@ class ResourceAuditTests(unittest.TestCase):
         bad = dict(INVENTORY["targets"][1]); bad["expectedIdentity"] = "other"
         report = MODULE.collect_remote(bad, runner=lambda argv, timeout: MODULE.CommandResult(0, json.dumps({"identity": "synthetic-windows", "volumes": [], "memory": {}, "processes": []})))
         self.assertEqual(report["status"], "blocked")
-        for transport in ("ssh-posix", "proxmox-pct"):
-            target = {"id": "remote", "platform": "container", "transport": transport, "endpoint": "synthetic-host", "expectedIdentity": "other", "scanRoots": ["/srv/example"], "protectedPaths": ["/srv/example/live.db"], "containerId": 42} if transport == "proxmox-pct" else {"id": "remote", "platform": "linux", "transport": transport, "endpoint": "synthetic-host", "expectedIdentity": "other", "scanRoots": ["/srv/example"], "protectedPaths": ["/srv/example/live.db"]}
-            report = MODULE.collect_remote(target, runner=lambda argv, timeout: MODULE.CommandResult(0, json.dumps({"identity": "synthetic-linux", "volumes": [], "memory": {}, "processes": []})))
-            self.assertEqual(report["status"], "blocked")
+        target = {"id": "remote", "platform": "linux", "transport": "ssh-posix", "endpoint": "synthetic-host", "expectedIdentity": "other", "scanRoots": ["/srv/example"], "protectedPaths": ["/srv/example/live.db"]}
+        report = MODULE.collect_remote(target, runner=lambda argv, timeout: MODULE.CommandResult(0, json.dumps({"identity": "synthetic-linux", "volumes": [], "memory": {}, "processes": []})))
+        self.assertEqual(report["status"], "blocked")
+        targets = proxmox_targets(); targets[1]["expectedIdentity"] = "other"
+        report = MODULE.collect_remote(targets[1], runner=lambda argv, timeout: MODULE.CommandResult(0, json.dumps(posix_payload())), targets=targets)
+        self.assertEqual(report["status"], "blocked")
         local = dict(INVENTORY["targets"][0]); local["expectedIdentity"] = "other"
         report = MODULE.collect_linux(local, runner=Runner(), exists=lambda _: False)
         self.assertEqual(report["status"], "blocked")

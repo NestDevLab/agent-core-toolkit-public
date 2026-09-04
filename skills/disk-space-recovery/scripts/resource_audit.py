@@ -160,11 +160,11 @@ def validate_inventory(data: object, source_path: Path | None = None) -> list[st
         elif any(not isinstance(value, (int, float)) or isinstance(value, bool) or not 0 <= value <= 100 for key, value in thresholds.items() if key != "growthBytesPerHour") or ("growthBytesPerHour" in thresholds and (not isinstance(thresholds["growthBytesPerHour"], int) or isinstance(thresholds["growthBytesPerHour"], bool) or thresholds["growthBytesPerHour"] < 0)):
             errors.append(f"{prefix}: malformed thresholds")
         transport = target.get("transport")
-        if transport != "local" and not isinstance(target.get("endpoint"), str):
+        if transport not in {"local", "proxmox-pct"} and not isinstance(target.get("endpoint"), str):
             errors.append(f"{prefix}: endpoint required for remote transport")
         if "endpoint" in target and not _valid_endpoint(target["endpoint"]):
             errors.append(f"{prefix}: invalid endpoint")
-        if transport == "proxmox-pct" and (not isinstance(target.get("containerId"), int) or isinstance(target.get("containerId"), bool)):
+        if transport == "proxmox-pct" and (not isinstance(target.get("containerId"), int) or isinstance(target.get("containerId"), bool) or target["containerId"] <= 0):
             errors.append(f"{prefix}: containerId required for proxmox-pct")
         if transport == "proxmox-pct" and not target.get("parent"):
             errors.append(f"{prefix}: proxmox-pct target requires a parent")
@@ -192,7 +192,11 @@ def validate_inventory(data: object, source_path: Path | None = None) -> list[st
             errors.append(f"target {target.get('id')}: parent not found")
         if isinstance(target, dict) and target.get("parent"):
             parent = relationships.get(str(target["parent"]))
-            if parent and (target.get("platform") != "container" or parent.get("platform") != "proxmox"):
+            if parent and (
+                target.get("platform") != "container"
+                or parent.get("platform") != "proxmox"
+                or target.get("transport") == "proxmox-pct" and parent.get("transport") != "ssh-posix"
+            ):
                 errors.append(f"target {target.get('id')}: invalid parent relationship")
     for target_id in ids:
         seen: set[str] = set()
@@ -505,15 +509,48 @@ def _normalise_posix(payload: dict[str, object]) -> dict[str, object]:
     return result
 
 
-def collect_remote(target: dict[str, object], runner: Runner = run_command) -> dict[str, object]:
+def _proxmox_parent_endpoint(
+    target: dict[str, object], targets: Iterable[dict[str, object]] | None
+) -> tuple[str | None, str | None]:
+    parent_id = target.get("parent")
+    if not isinstance(parent_id, str) or not parent_id:
+        return None, "proxmox-pct parent is missing"
+    if targets is None:
+        return None, "proxmox-pct target graph is required"
+    matches = [item for item in targets if isinstance(item, dict) and item.get("id") == parent_id]
+    if len(matches) != 1:
+        return None, "proxmox-pct parent is missing or ambiguous"
+    parent = matches[0]
+    if parent.get("platform") != "proxmox" or parent.get("transport") != "ssh-posix":
+        return None, "proxmox-pct parent must be a proxmox ssh-posix target"
+    endpoint = parent.get("endpoint")
+    if not _valid_endpoint(endpoint):
+        return None, "proxmox-pct parent endpoint is invalid"
+    return str(endpoint), None
+
+
+def collect_remote(
+    target: dict[str, object],
+    runner: Runner = run_command,
+    targets: Iterable[dict[str, object]] | None = None,
+) -> dict[str, object]:
     transport = str(target["transport"])
-    endpoint = str(target.get("endpoint", ""))
+    if transport == "proxmox-pct":
+        endpoint, parent_error = _proxmox_parent_endpoint(target, targets)
+        container_id = target.get("containerId")
+        if parent_error:
+            return {"schemaVersion": SCHEMA, "target": {"id": target["id"], "platform": target["platform"], "transport": transport}, "status": "blocked", "errors": [parent_error]}
+        if not isinstance(container_id, int) or isinstance(container_id, bool) or container_id <= 0:
+            return {"schemaVersion": SCHEMA, "target": {"id": target["id"], "platform": target["platform"], "transport": transport}, "status": "blocked", "errors": ["invalid proxmox-pct container ID"]}
+        assert endpoint is not None
+    else:
+        endpoint = str(target.get("endpoint", ""))
     if not _valid_endpoint(endpoint):
         return {"schemaVersion": SCHEMA, "target": {"id": target["id"], "platform": target["platform"], "transport": transport}, "status": "blocked", "errors": ["invalid endpoint rejected before transport"]}
     if transport == "ssh-powershell":
         argv = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", endpoint, "powershell.exe", "-NoProfile", "-NonInteractive", "-Command", WINDOWS_SCRIPT]
     elif transport == "proxmox-pct":
-        argv = ["pct", "exec", str(target["containerId"]), "--", "python3", "-c", POSIX_SCRIPT]
+        argv = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", endpoint, "pct", "exec", str(target["containerId"]), "--", "python3", "-c", POSIX_SCRIPT]
     else:
         argv = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", endpoint, "python3", "-c", POSIX_SCRIPT]
     if transport in {"ssh-posix", "proxmox-pct"}:
@@ -530,10 +567,15 @@ def collect_remote(target: dict[str, object], runner: Runner = run_command) -> d
     return {"schemaVersion": SCHEMA, "target": {"id": target["id"], "platform": target["platform"], "transport": transport}, "status": "unavailable", "errors": ["remote response was not JSON"]}
 
 
-def audit_target(target: dict[str, object], runner: Runner = run_command, exists: Callable[[str], bool] = lambda name: shutil.which(name) is not None) -> dict[str, object]:
+def audit_target(
+    target: dict[str, object],
+    runner: Runner = run_command,
+    exists: Callable[[str], bool] = lambda name: shutil.which(name) is not None,
+    targets: Iterable[dict[str, object]] | None = None,
+) -> dict[str, object]:
     if target["transport"] == "local" and target["platform"] in {"linux", "proxmox", "container"}:
         return collect_linux(target, runner, exists)
-    return collect_remote(target, runner)
+    return collect_remote(target, runner, targets)
 
 
 def _percent(available: object, total: object) -> float | None:
@@ -671,7 +713,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "audit":
             inventory = load_inventory(args.inventory); target = next((item for item in inventory["targets"] if item.get("id") == args.target), None)
             if target is None: raise ValueError("target not found")
-            _write(audit_target(target), args.output); return 0
+            _write(audit_target(target, targets=inventory["targets"]), args.output); return 0
         if args.command == "plan":
             inventory = load_inventory(args.inventory); audits = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(args.audit_dir.glob("*.json"))]
             _write(build_plan(inventory, audits), args.output); return 0
