@@ -573,10 +573,16 @@ def build_plan(inventory: dict[str, object], audits: Iterable[dict[str, object]]
     targets = {str(target["id"]): target for target in inventory["targets"] if isinstance(target, dict)}
     audit_by_id = {str(audit.get("target", {}).get("id", "")): audit for audit in sorted(audits, key=canonical)}
     candidates: list[dict[str, object]] = []
+    target_states: dict[str, str] = {}
     for target_id in sorted(targets):
         target = targets[target_id]
         audit = audit_by_id.get(target_id)
+        if target.get("availability") == "unavailable":
+            target_states[target_id] = "unavailable"
+            candidates.append(_candidate(target_id, target, "target", "unavailable", "unavailable", "target is declared unavailable", risk=10))
+            continue
         if audit is None:
+            target_states[target_id] = "unavailable"
             candidates.append(_candidate(target_id, target, "target", "missing-audit", "unavailable", "audit evidence missing", risk=10))
             continue
         expected_identity = str(target.get("expectedIdentity", ""))
@@ -584,9 +590,11 @@ def build_plan(inventory: dict[str, object], audits: Iterable[dict[str, object]]
         identity_mismatch = observed_identity.casefold() != expected_identity.casefold()
         if audit.get("status") != "available" or identity_mismatch:
             status = "unavailable" if audit.get("status") == "unavailable" else "blocked"
+            target_states[target_id] = status
             reason = f"identity mismatch: expected {expected_identity}, observed {observed_identity or '<empty>'}" if identity_mismatch else str((audit.get("errors") or ["target is not usable"])[0])
             candidates.append(_candidate(target_id, target, "target", status, status, reason, risk=10))
             continue
+        target_states[target_id] = "available"
         thresholds = target.get("thresholds", {})
         growth = float(thresholds.get("growthBytesPerHour", 0) or 0)
         for item in audit.get("filesystems", []) if isinstance(audit.get("filesystems"), list) else []:
@@ -626,7 +634,7 @@ def build_plan(inventory: dict[str, object], audits: Iterable[dict[str, object]]
     candidates.sort(key=lambda row: (-row["priority"]["urgency"], -row["priority"]["growth"], -row["priority"]["reclaimability"], -row["priority"]["reversibility"], row["priority"]["risk"], str(row["target"]), str(row["actionId"])))
     statuses = {str(candidate["status"]) for candidate in candidates}
     state = "blocked" if "blocked" in statuses or "unavailable" in statuses else "review" if candidates else "ready"
-    body = {"schemaVersion": PLAN_SCHEMA, "inventoryDigest": digest(inventory), "targets": sorted(targets), "targetStates": {target_id: (audit_by_id.get(target_id, {}).get("status", "unavailable")) for target_id in sorted(targets)}, "candidates": candidates, "state": state}
+    body = {"schemaVersion": PLAN_SCHEMA, "inventoryDigest": digest(inventory), "targets": sorted(targets), "targetStates": target_states, "candidates": candidates, "state": state}
     body["planDigest"] = digest(body)
     return body
 

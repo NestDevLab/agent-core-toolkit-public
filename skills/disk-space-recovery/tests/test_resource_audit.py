@@ -186,7 +186,16 @@ class ResourceAuditTests(unittest.TestCase):
         plan = MODULE.build_plan(INVENTORY, [audit])
         target_candidate = next(item for item in plan["candidates"] if item["target"] == "linux-lab" and item["kind"] == "target")
         self.assertEqual(target_candidate["status"], "blocked")
-        self.assertEqual(plan["targetStates"]["linux-lab"], "available")
+        self.assertEqual(plan["targetStates"]["linux-lab"], "blocked")
+        self.assertNotEqual(plan["state"], "ready")
+
+    def test_planner_blocks_declared_unavailable_target(self) -> None:
+        inventory = json.loads(json.dumps(INVENTORY)); inventory["targets"][0]["availability"] = "unavailable"
+        audit = {"schemaVersion": MODULE.SCHEMA, "target": {"id": "linux-lab"}, "status": "available", "identity": "synthetic-linux", "filesystems": [], "inodes": [], "memory": {}, "processes": [], "largeFiles": []}
+        plan = MODULE.build_plan(inventory, [audit])
+        candidate = next(item for item in plan["candidates"] if item["target"] == "linux-lab")
+        self.assertEqual(candidate["status"], "unavailable")
+        self.assertEqual(plan["targetStates"]["linux-lab"], "unavailable")
         self.assertNotEqual(plan["state"], "ready")
 
     def test_windows_remote_normalizes_fixed_payload(self) -> None:
