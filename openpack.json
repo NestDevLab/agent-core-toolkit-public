@@ -4,8 +4,8 @@
   "version": "0.5.0",
   "requires": {
     "self-improve": {
-      "source": "github:eai-org/agent-toolkit",
-      "ref": "main",
+      "source": "git:https://github.com/eai-org/agent-toolkit.git#17f5861e66800e0c0af702ea837ad7911c42099f",
+      "mode": "pinned",
       "select": ["skills/self-improve"],
       "runtimes": ["codex", "claude"]
     }
