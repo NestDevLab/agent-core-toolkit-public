@@ -1,13 +1,15 @@
 ---
 name: disk-space-recovery
-description: Audit and safely recover disk space across the current host namespace and accessible container runtimes. Use for recurring disk pressure, log growth, cache and archive classification, database retention planning, or Git worktree hygiene. Always begin with the deterministic read-only audit and distinguish accessible containers from hosts or containers outside the current namespace.
+description: Audit disk and RAM pressure across declared hosts, containers, hypervisors, and Windows targets. Use for storage growth, memory pressure, log/cache/archive classification, or safe cleanup planning.
+metadata:
+  version: "0.2"
 ---
 
-# Disk Space Recovery
+# Disk and Resource Recovery Base
 
 ## Operating contract
 
-This skill coordinates storage work; it does not turn size into permission to delete.
+This base coordinates evidence; it does not turn size into permission to delete.
 Use it when a host or container is filling up, when storage grows again after a
 cleanup, or when logs, caches, archives, databases, and worktrees must be classified.
 
@@ -28,7 +30,33 @@ Never use a global prune, global log flush, unrestricted `rm`, unrestricted data
 `DELETE`, or filesystem-wide `VACUUM` as a shortcut. Prefer quarantine or a named,
 recoverable backup when the approved procedure permits it.
 
-## First pass: host and containers
+## First pass: declared targets
+
+Use `resource-maintenance.inventory.v1` for target identity, platform, transport,
+scan roots, protected paths, thresholds, and authoritative documents. Every
+inventory declares `docRoot`; each document declares `remoteOnly`, and local
+documents must exist during validation. The inventory is data only: it cannot
+contain credentials, shell, scripts, or arbitrary commands. Unknown fields and
+secret markers are rejected recursively, as are unsafe endpoints, cycles, bad
+parent relationships, empty configured lists, and invalid path/platform pairs.
+Resolve and read its private architecture references before interpreting live data.
+
+Run `resource_audit.py inventory validate`, then `resource_audit.py audit` once per
+target and `resource_audit.py plan` over the result directory. It supports fixed
+local, SSH POSIX, SSH PowerShell, and Proxmox LXC transports. Subprocesses use argv,
+fixed scripts, bounded output, and timeouts. Remote identity mismatches or unavailable
+transports are findings, not evidence that a target is absent.
+
+Normalized evidence includes filesystems, inode capacity, bounded `du`, large
+files, deleted-open regular files, physical memory, swap/pagefile, PSI, OOM and
+cgroup memory, top processes, Docker no-stream memory, Windows Hyper-V/VHD and
+service associations, WSL/Docker presence, optional GPU data, and target
+relationships. Missing tools are explicit findings. Parent and guest evidence
+remain separate, and the planner blocks duplicate parent/guest filesystem
+evidence rather than double-counting space.
+
+The new collector is read-only. It never deletes, rotates, prunes, vacuums,
+restarts, kills, changes container state, or edits Git state.
 
 Pass only roots that are explicitly in scope for the current environment:
 

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "resource-maintenance.inventory.v1",
+  "environment": "synthetic-lab",
+  "docRoot": ".",
+  "targets": [
+    {
+      "id": "linux-lab",
+      "platform": "linux",
+      "transport": "local",
+      "expectedIdentity": "synthetic-linux",
+      "authoritativeDocs": [{"path": "docs/synthetic-linux.md", "remoteOnly": true}],
+      "scanRoots": ["/srv/example", "/var/log/example"],
+      "protectedPaths": ["/srv/example/live.db"],
+      "thresholds": {"diskFreePercent": 15, "memoryAvailablePercent": 10},
+      "operatorCapability": "synthetic-read-only",
+      "procedureRefs": ["docs/synthetic-linux.md"],
+      "recoveryRefs": ["docs/synthetic-linux.md"]
+    },
+    {
+      "id": "windows-lab",
+      "platform": "windows",
+      "transport": "ssh-powershell",
+      "endpoint": "synthetic-windows",
+      "expectedIdentity": "synthetic-windows",
+      "authoritativeDocs": [{"path": "docs/synthetic-windows.md", "remoteOnly": true}],
+      "scanRoots": ["C:\\Data\\Example"],
+      "protectedPaths": ["C:\\Data\\Example\\active.vhdx"],
+      "thresholds": {"diskFreePercent": 15, "memoryAvailablePercent": 10, "pagefileUsedPercent": 80},
+      "operatorCapability": "synthetic-read-only",
+      "procedureRefs": ["docs/synthetic-windows.md"],
+      "recoveryRefs": ["docs/synthetic-windows.md"]
+    }
+  ]
+}
