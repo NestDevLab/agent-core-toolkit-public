@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "resource-maintenance.inventory.v1",
+  "environment": "synthetic-lab",
+  "targets": [
+    {
+      "id": "linux-lab",
+      "platform": "linux",
+      "transport": "local",
+      "expectedIdentity": "synthetic-linux",
+      "authoritativeDocs": ["docs/synthetic-linux.md"],
+      "scanRoots": ["/srv/example", "/var/log/example"],
+      "protectedPaths": ["/srv/example/live.db"],
+      "thresholds": {"diskFreePercent": 15, "memoryAvailablePercent": 10},
+      "operatorCapability": "synthetic-read-only"
+    },
+    {
+      "id": "windows-lab",
+      "platform": "windows",
+      "transport": "ssh-powershell",
+      "endpoint": "synthetic-windows",
+      "expectedIdentity": "synthetic-windows",
+      "authoritativeDocs": ["docs/synthetic-windows.md"],
+      "scanRoots": ["C:\\Data\\Example"],
+      "protectedPaths": ["C:\\Data\\Example\\active.vhdx"],
+      "thresholds": {"diskFreePercent": 15, "memoryAvailablePercent": 10, "pagefileUsedPercent": 80},
+      "operatorCapability": "synthetic-read-only"
+    }
+  ]
+}
