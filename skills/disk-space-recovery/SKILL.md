@@ -33,8 +33,12 @@ recoverable backup when the approved procedure permits it.
 ## First pass: declared targets
 
 Use `resource-maintenance.inventory.v1` for target identity, platform, transport,
-scan roots, protected paths, thresholds, and authoritative documents. The inventory
-is data only: it cannot contain credentials, shell, scripts, or arbitrary commands.
+scan roots, protected paths, thresholds, and authoritative documents. Every
+inventory declares `docRoot`; each document declares `remoteOnly`, and local
+documents must exist during validation. The inventory is data only: it cannot
+contain credentials, shell, scripts, or arbitrary commands. Unknown fields and
+secret markers are rejected recursively, as are unsafe endpoints, cycles, bad
+parent relationships, empty configured lists, and invalid path/platform pairs.
 Resolve and read its private architecture references before interpreting live data.
 
 Run `resource_audit.py inventory validate`, then `resource_audit.py audit` once per
@@ -43,9 +47,13 @@ local, SSH POSIX, SSH PowerShell, and Proxmox LXC transports. Subprocesses use a
 fixed scripts, bounded output, and timeouts. Remote identity mismatches or unavailable
 transports are findings, not evidence that a target is absent.
 
-Normalized evidence includes filesystems, inode capacity, large files, physical
-memory, swap/pagefile, top processes, container sizes, and target relationships.
-Parent and guest evidence remain separate so a plan cannot double-count space.
+Normalized evidence includes filesystems, inode capacity, bounded `du`, large
+files, deleted-open regular files, physical memory, swap/pagefile, PSI, OOM and
+cgroup memory, top processes, Docker no-stream memory, Windows Hyper-V/VHD and
+service associations, WSL/Docker presence, optional GPU data, and target
+relationships. Missing tools are explicit findings. Parent and guest evidence
+remain separate, and the planner blocks duplicate parent/guest filesystem
+evidence rather than double-counting space.
 
 The new collector is read-only. It never deletes, rotates, prunes, vacuums,
 restarts, kills, changes container state, or edits Git state.
