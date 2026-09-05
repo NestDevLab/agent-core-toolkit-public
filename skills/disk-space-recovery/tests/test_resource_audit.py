@@ -3,8 +3,11 @@
 
 from __future__ import annotations
 
+import base64
+import gzip
 import importlib.util
 import json
+import re
 import shlex
 import sys
 import tempfile
@@ -175,6 +178,69 @@ class ResourceAuditTests(unittest.TestCase):
         self.assertEqual(report["status"], "unavailable")
         self.assertIn("-NoProfile", seen[0][-1])
         self.assertNotIn("shell=True", SCRIPT.read_text())
+
+    def test_posix_remote_roots_survive_shell_serialization(self) -> None:
+        roots = [
+            "/srv/space root",
+            "/srv/single'quote",
+            '/srv/double"quote',
+            "/srv/semi;colon",
+            "/srv/$() literal",
+        ]
+        target = {
+            "id": "remote",
+            "platform": "linux",
+            "transport": "ssh-posix",
+            "endpoint": "synthetic-host",
+            "expectedIdentity": "synthetic-linux",
+            "scanRoots": roots,
+            "protectedPaths": ["/srv/example/live.db"],
+        }
+        seen: list[list[str]] = []
+        MODULE.collect_remote(target, runner=lambda argv, timeout: seen.append(argv) or MODULE.CommandResult(1))
+        command = shlex.split(seen[0][6])
+        self.assertEqual(command[:3], ["python3", "-c", MODULE.POSIX_SCRIPT])
+        self.assertEqual(command[3:], [part for root in sorted(roots) for part in ("--root", root)])
+
+    def test_powershell_script_and_roots_survive_encoded_command(self) -> None:
+        roots = [
+            "C:\\Space Root",
+            "D:\\single'quote",
+            'E:\\double"quote',
+            "F:\\semi;root",
+            "G:\\$() literal",
+            "H:\\pipe|and&root",
+        ]
+        target = dict(INVENTORY["targets"][1])
+        target["scanRoots"] = roots
+        seen: list[list[str]] = []
+        MODULE.collect_remote(target, runner=lambda argv, timeout: seen.append(argv) or MODULE.CommandResult(1))
+
+        command = seen[0][6]
+        prefix = "powershell.exe -NoProfile -NonInteractive -EncodedCommand "
+        self.assertTrue(command.startswith(prefix))
+        self.assertEqual(command, MODULE._powershell_remote_command(sorted(roots)))
+        encoded = command.removeprefix(prefix)
+        self.assertRegex(encoded, r"^[A-Za-z0-9+/]+={0,2}$")
+        payload = base64.b64decode(encoded, validate=True).decode("utf-16-le")
+        loader_match = re.fullmatch(
+            r"\$bytes=\[Convert\]::FromBase64String\('([A-Za-z0-9+/]+={0,2})'\); \$input=New-Object IO\.MemoryStream\(,\$bytes\); \$gzip=New-Object IO\.Compression\.GzipStream\(\$input,\[IO\.Compression\.CompressionMode\]::Decompress\); \$reader=New-Object IO\.StreamReader\(\$gzip,\[Text\.Encoding\]::UTF8\); & \(\[ScriptBlock\]::Create\(\$reader\.ReadToEnd\(\)\)\)",
+            payload,
+        )
+        self.assertIsNotNone(loader_match)
+        assert loader_match is not None
+        inner_payload = gzip.decompress(base64.b64decode(loader_match.group(1), validate=True)).decode("utf-8")
+        self.assertTrue(inner_payload.endswith(MODULE.WINDOWS_SCRIPT))
+        arguments_match = re.fullmatch(
+            r"\$auditArgsJson=\[Text\.Encoding\]::UTF8\.GetString\(\[Convert\]::FromBase64String\('([A-Za-z0-9+/]+={0,2})'\)\); \$auditArgs=@\(ConvertFrom-Json -InputObject \$auditArgsJson\); \$roots=@\(for\(\$i=0;\$i -lt \$auditArgs\.Count-1;\$i\+\+\)\{if\(\$auditArgs\[\$i\] -eq '--root'\)\{\$auditArgs\[\$i\+1\]\}\}\); ",
+            inner_payload[: -len(MODULE.WINDOWS_SCRIPT)],
+        )
+        self.assertIsNotNone(arguments_match)
+        assert arguments_match is not None
+        decoded_arguments = json.loads(base64.b64decode(arguments_match.group(1), validate=True).decode("utf-8"))
+        self.assertEqual(decoded_arguments, [part for root in sorted(roots) for part in ("--root", root)])
+        self.assertNotRegex(command, r"[|&;'\"$()]")
+        self.assertLess(len(command), 8_191)
 
     def test_posix_and_pct_remote_transports_normalize_json(self) -> None:
         payload = posix_payload("synthetic-linux")
