@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shlex
 import sys
 import tempfile
 import unittest
@@ -172,7 +173,7 @@ class ResourceAuditTests(unittest.TestCase):
             return MODULE.CommandResult(1, "", "unavailable")
         report = MODULE.collect_remote(INVENTORY["targets"][1], runner=runner)
         self.assertEqual(report["status"], "unavailable")
-        self.assertIn("-NoProfile", seen[0])
+        self.assertIn("-NoProfile", seen[0][-1])
         self.assertNotIn("shell=True", SCRIPT.read_text())
 
     def test_posix_and_pct_remote_transports_normalize_json(self) -> None:
@@ -188,7 +189,8 @@ class ResourceAuditTests(unittest.TestCase):
         self.assertEqual(report["processes"][0]["pid"], 3)
         self.assertEqual(report["psi"]["memory"], "some avg10=1")
         self.assertTrue(report["deletedOpen"])
-        self.assertEqual(seen[0][:7], ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "synthetic-host", "python3"])
+        self.assertEqual(seen[0][:6], ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "synthetic-host"])
+        self.assertEqual(shlex.split(seen[0][6])[:3], ["python3", "-c", MODULE.POSIX_SCRIPT])
 
         targets = proxmox_targets()
         child = targets[1]
@@ -199,12 +201,10 @@ class ResourceAuditTests(unittest.TestCase):
         report = MODULE.audit_target(child, runner=pct_runner, targets=targets)
         self.assertEqual(report["status"], "available")
         self.assertEqual(report["identity"], "synthetic-container")
-        self.assertEqual(
-            seen[0][:12],
-            ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "synthetic-proxmox", "pct", "exec", "42", "--", "python3", "-c"],
-        )
-        self.assertEqual(seen[0][12], MODULE.POSIX_SCRIPT)
-        self.assertNotIn("/bin/sh", seen[0])
+        self.assertEqual(seen[0][:6], ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "synthetic-proxmox"])
+        command = shlex.split(seen[0][6])
+        self.assertEqual(command[:7], ["pct", "exec", "42", "--", "python3", "-c", MODULE.POSIX_SCRIPT])
+        self.assertNotIn("/bin/sh", command)
         compile(MODULE.POSIX_SCRIPT, "resource_audit.POSIX_SCRIPT", "exec")
 
     def test_pct_missing_or_invalid_parent_fails_before_runner(self) -> None:

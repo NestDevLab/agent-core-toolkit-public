@@ -9,6 +9,7 @@ import json
 import os
 import re
 import shutil
+import shlex
 import socket
 import subprocess
 from pathlib import Path
@@ -548,14 +549,19 @@ def collect_remote(
     if not _valid_endpoint(endpoint):
         return {"schemaVersion": SCHEMA, "target": {"id": target["id"], "platform": target["platform"], "transport": transport}, "status": "blocked", "errors": ["invalid endpoint rejected before transport"]}
     if transport == "ssh-powershell":
-        argv = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", endpoint, "powershell.exe", "-NoProfile", "-NonInteractive", "-Command", WINDOWS_SCRIPT]
+        remote = ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", WINDOWS_SCRIPT]
     elif transport == "proxmox-pct":
-        argv = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", endpoint, "pct", "exec", str(target["containerId"]), "--", "python3", "-c", POSIX_SCRIPT]
+        remote = ["pct", "exec", str(target["containerId"]), "--", "python3", "-c", POSIX_SCRIPT]
     else:
-        argv = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", endpoint, "python3", "-c", POSIX_SCRIPT]
+        remote = ["python3", "-c", POSIX_SCRIPT]
     if transport in {"ssh-posix", "proxmox-pct"}:
         for root in sorted(set(str(item) for item in target.get("scanRoots", []))):
-            argv.extend(["--root", root])
+            remote.extend(["--root", root])
+    # OpenSSH joins command arguments and evaluates them through the remote
+    # user's shell. Quote the complete command as one argv item so the Python
+    # and PowerShell scripts cannot be split or interpreted by that shell.
+    remote_command = " ".join(shlex.quote(item) for item in remote)
+    argv = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", endpoint, remote_command]
     result = runner(argv, 30)
     if result.returncode:
         return {"schemaVersion": SCHEMA, "target": {"id": target["id"], "platform": target["platform"], "transport": transport}, "status": "unavailable", "errors": [f"transport failed with exit {result.returncode}"]}
