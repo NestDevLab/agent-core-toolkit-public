@@ -4,11 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import gzip
 import hashlib
 import json
 import os
 import re
 import shutil
+import shlex
 import socket
 import subprocess
 from pathlib import Path
@@ -529,6 +532,36 @@ def _proxmox_parent_endpoint(
     return str(endpoint), None
 
 
+def _posix_remote_command(argv: list[str]) -> str:
+    """Serialize argv for the POSIX login shell used by OpenSSH."""
+    return " ".join(shlex.quote(item) for item in argv)
+
+
+def _powershell_remote_command(roots: list[str]) -> str:
+    """Build a cmd.exe-safe OpenSSH command with an opaque PowerShell payload."""
+    arguments = [part for root in roots for part in ("--root", root)]
+    arguments_json = json.dumps(arguments, ensure_ascii=False, separators=(",", ":"))
+    arguments_base64 = base64.b64encode(arguments_json.encode("utf-8")).decode("ascii")
+    inner_payload = (
+        "$auditArgsJson=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"
+        + arguments_base64
+        + "')); $auditArgs=@(ConvertFrom-Json -InputObject $auditArgsJson); "
+        + "$roots=@(for($i=0;$i -lt $auditArgs.Count-1;$i++){if($auditArgs[$i] -eq '--root'){$auditArgs[$i+1]}}); "
+        + WINDOWS_SCRIPT
+    )
+    compressed = base64.b64encode(gzip.compress(inner_payload.encode("utf-8"), mtime=0)).decode("ascii")
+    payload = (
+        "$bytes=[Convert]::FromBase64String('"
+        + compressed
+        + "'); $input=New-Object IO.MemoryStream(,$bytes); "
+        + "$gzip=New-Object IO.Compression.GzipStream($input,[IO.Compression.CompressionMode]::Decompress); "
+        + "$reader=New-Object IO.StreamReader($gzip,[Text.Encoding]::UTF8); "
+        + "& ([ScriptBlock]::Create($reader.ReadToEnd()))"
+    )
+    encoded = base64.b64encode(payload.encode("utf-16-le")).decode("ascii")
+    return f"powershell.exe -NoProfile -NonInteractive -EncodedCommand {encoded}"
+
+
 def collect_remote(
     target: dict[str, object],
     runner: Runner = run_command,
@@ -547,15 +580,21 @@ def collect_remote(
         endpoint = str(target.get("endpoint", ""))
     if not _valid_endpoint(endpoint):
         return {"schemaVersion": SCHEMA, "target": {"id": target["id"], "platform": target["platform"], "transport": transport}, "status": "blocked", "errors": ["invalid endpoint rejected before transport"]}
-    if transport == "ssh-powershell":
-        argv = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", endpoint, "powershell.exe", "-NoProfile", "-NonInteractive", "-Command", WINDOWS_SCRIPT]
-    elif transport == "proxmox-pct":
-        argv = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", endpoint, "pct", "exec", str(target["containerId"]), "--", "python3", "-c", POSIX_SCRIPT]
+    roots = sorted(set(str(item) for item in target.get("scanRoots", [])))
+    if transport == "proxmox-pct":
+        remote = ["pct", "exec", str(target["containerId"]), "--", "python3", "-c", POSIX_SCRIPT]
+    elif transport == "ssh-posix":
+        remote = ["python3", "-c", POSIX_SCRIPT]
     else:
-        argv = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", endpoint, "python3", "-c", POSIX_SCRIPT]
-    if transport in {"ssh-posix", "proxmox-pct"}:
-        for root in sorted(set(str(item) for item in target.get("scanRoots", []))):
-            argv.extend(["--root", root])
+        remote = []
+    if remote:
+        for root in roots:
+            remote.extend(["--root", root])
+    # OpenSSH joins the remote arguments into a command string. POSIX targets
+    # evaluate it with a login shell; Windows OpenSSH commonly uses cmd.exe, so
+    # keep metacharacters inside an opaque UTF-16LE PowerShell payload instead.
+    remote_command = _powershell_remote_command(roots) if transport == "ssh-powershell" else _posix_remote_command(remote)
+    argv = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", endpoint, remote_command]
     result = runner(argv, 30)
     if result.returncode:
         return {"schemaVersion": SCHEMA, "target": {"id": target["id"], "platform": target["platform"], "transport": transport}, "status": "unavailable", "errors": [f"transport failed with exit {result.returncode}"]}
