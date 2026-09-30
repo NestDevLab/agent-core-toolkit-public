@@ -8,6 +8,7 @@ import base64
 import gzip
 import hashlib
 import json
+import math
 import ntpath
 import os
 import posixpath
@@ -324,6 +325,41 @@ def _local_optional_evidence(runner: Runner, exists: Callable[[str], bool], root
     return evidence
 
 
+def _valid_measurement(available: object, total: object) -> bool:
+    try:
+        free, capacity = float(available), float(total)
+        return math.isfinite(free) and math.isfinite(capacity) and capacity > 0 and 0 <= free <= capacity
+    except (TypeError, ValueError):
+        return False
+
+
+def _baseline_error(target: dict[str, object], report: dict[str, object]) -> str | None:
+    filesystems = report.get("filesystems")
+    if not isinstance(filesystems, list) or not any(
+        isinstance(row, dict) and _valid_measurement(row.get("available"), row.get("blocks"))
+        for row in filesystems
+    ):
+        return "filesystem baseline unavailable"
+    if str(target.get("platform", "")) != "windows":
+        inodes = report.get("inodes")
+        if not isinstance(inodes, list) or not any(
+            isinstance(row, dict) and _valid_measurement(row.get("available"), row.get("inodes"))
+            for row in inodes
+        ):
+            return "inode baseline unavailable"
+    memory = report.get("memory")
+    physical = memory.get("physical") if isinstance(memory, dict) else None
+    if not isinstance(physical, dict) or not _valid_measurement(physical.get("availableBytes"), physical.get("totalBytes")):
+        return "physical memory baseline unavailable"
+    incomplete = report.get("incompleteEvidence", [])
+    if isinstance(incomplete, list) and any(
+        isinstance(row, dict) and row.get("evidence") in {"filesystems", "inodes"}
+        for row in incomplete
+    ):
+        return "filesystem baseline incomplete"
+    return None
+
+
 def _identity_status(target: dict[str, object], report: dict[str, object]) -> dict[str, object]:
     expected = str(target.get("expectedIdentity", ""))
     actual = str(report.get("identity", ""))
@@ -334,7 +370,12 @@ def _identity_status(target: dict[str, object], report: dict[str, object]) -> di
         report["status"] = "blocked"
         report.setdefault("errors", []).append(f"identity mismatch: expected {expected}, observed {actual or '<empty>'}")
     else:
-        report["status"] = "available"
+        baseline_error = _baseline_error(target, report)
+        if baseline_error:
+            report["status"] = "unavailable"
+            report.setdefault("errors", []).append(baseline_error)
+        else:
+            report["status"] = "available"
     report["errors"] = sorted(set(str(error) for error in report.get("errors", [])))
     return report
 
@@ -393,6 +434,10 @@ def number(value):
     except (TypeError,ValueError): return None
 def df(argv, inode=False):
     code,out,_=run(argv,5)
+    evidence="inodes" if inode else "filesystems"
+    if code!=0:
+        incomplete_evidence.append({"evidence":evidence,"reason":"timeout" if code==124 else "command-failed","root":"/"})
+        errors.append(evidence+" baseline command failed")
     rows=[]
     for line in out.splitlines():
         fields=line.split(maxsplit=5 if inode else 6)
@@ -459,14 +504,14 @@ def large_and_du():
     large=[]; summaries=[]
     for root in sorted(set(roots)):
         code,out,_=run(["du","-x","-d","1","-B1",root],OPTIONAL_BUDGET_SECONDS,True)
-        if code in (124,125): incomplete_evidence.append({"evidence":"duSummaries","reason":"timeout" if code==124 else "budget-exhausted","root":root[:1000]})
-        if code==0:
+        if code!=0: incomplete_evidence.append({"evidence":"duSummaries","reason":"timeout" if code==124 else "budget-exhausted" if code==125 else "command-failed","root":root[:1000]})
+        if code not in (124,125):
             for line in out.splitlines()[:MAX]:
                 f=line.split("\t",1)
                 if len(f)==2 and number(f[0]) is not None: summaries.append({"path":f[1][:1000],"bytes":number(f[0])})
         code,out,_=run(["find",root,"-xdev","-type","f","-size","+200000000c","-printf","%s\\t%p\\n"],OPTIONAL_BUDGET_SECONDS,True)
-        if code in (124,125): incomplete_evidence.append({"evidence":"largeFiles","reason":"timeout" if code==124 else "budget-exhausted","root":root[:1000]})
-        if code==0:
+        if code!=0: incomplete_evidence.append({"evidence":"largeFiles","reason":"timeout" if code==124 else "budget-exhausted" if code==125 else "command-failed","root":root[:1000]})
+        if code not in (124,125):
             for line in out.splitlines()[:MAX]:
                 f=line.split("\t",1)
                 if len(f)==2 and number(f[0]) is not None: large.append({"path":f[1][:1000],"bytes":number(f[0]),"protected":False})
@@ -548,6 +593,10 @@ def _normalise_windows(payload: dict[str, object]) -> dict[str, object]:
         "gpu": payload.get("gpu", []) if isinstance(payload.get("gpu"), list) else [],
         "diskHealth": payload.get("diskHealth", []) if isinstance(payload.get("diskHealth"), list) else [],
     }
+    result["filesystems"] = [
+        {**row, "blocks": row.get("totalBytes"), "available": row.get("availableBytes")}
+        for row in result["filesystems"] if isinstance(row, dict)
+    ]
     result["processes"] = sorted((item for item in result["processes"] if isinstance(item, dict)), key=lambda row: (-int(row.get("rssBytes", 0)), int(row.get("pid", 0))))[:MAX_ROWS]
     return result
 
@@ -751,6 +800,11 @@ def build_plan(inventory: dict[str, object], audits: Iterable[dict[str, object]]
             target_states[target_id] = status
             reason = f"identity mismatch: expected {expected_identity}, observed {observed_identity or '<empty>'}" if identity_mismatch else str((audit.get("errors") or ["target is not usable"])[0])
             candidates.append(_candidate(target_id, target, "target", status, status, reason, risk=10))
+            continue
+        baseline_error = _baseline_error(target, audit)
+        if baseline_error:
+            target_states[target_id] = "unavailable"
+            candidates.append(_candidate(target_id, target, "target", "unavailable", "unavailable", baseline_error, risk=10))
             continue
         target_states[target_id] = "available"
         thresholds = target.get("thresholds", {})
