@@ -8,7 +8,10 @@ import base64
 import gzip
 import hashlib
 import json
+import math
+import ntpath
 import os
+import posixpath
 import re
 import shutil
 import shlex
@@ -322,6 +325,41 @@ def _local_optional_evidence(runner: Runner, exists: Callable[[str], bool], root
     return evidence
 
 
+def _valid_measurement(available: object, total: object) -> bool:
+    try:
+        free, capacity = float(available), float(total)
+        return math.isfinite(free) and math.isfinite(capacity) and capacity > 0 and 0 <= free <= capacity
+    except (TypeError, ValueError):
+        return False
+
+
+def _baseline_error(target: dict[str, object], report: dict[str, object]) -> str | None:
+    filesystems = report.get("filesystems")
+    if not isinstance(filesystems, list) or not any(
+        isinstance(row, dict) and _valid_measurement(row.get("available"), row.get("blocks"))
+        for row in filesystems
+    ):
+        return "filesystem baseline unavailable"
+    if str(target.get("platform", "")) != "windows":
+        inodes = report.get("inodes")
+        if not isinstance(inodes, list) or not any(
+            isinstance(row, dict) and _valid_measurement(row.get("available"), row.get("inodes"))
+            for row in inodes
+        ):
+            return "inode baseline unavailable"
+    memory = report.get("memory")
+    physical = memory.get("physical") if isinstance(memory, dict) else None
+    if not isinstance(physical, dict) or not _valid_measurement(physical.get("availableBytes"), physical.get("totalBytes")):
+        return "physical memory baseline unavailable"
+    incomplete = report.get("incompleteEvidence", [])
+    if isinstance(incomplete, list) and any(
+        isinstance(row, dict) and row.get("evidence") in {"filesystems", "inodes"}
+        for row in incomplete
+    ):
+        return "filesystem baseline incomplete"
+    return None
+
+
 def _identity_status(target: dict[str, object], report: dict[str, object]) -> dict[str, object]:
     expected = str(target.get("expectedIdentity", ""))
     actual = str(report.get("identity", ""))
@@ -332,7 +370,12 @@ def _identity_status(target: dict[str, object], report: dict[str, object]) -> di
         report["status"] = "blocked"
         report.setdefault("errors", []).append(f"identity mismatch: expected {expected}, observed {actual or '<empty>'}")
     else:
-        report["status"] = "available"
+        baseline_error = _baseline_error(target, report)
+        if baseline_error:
+            report["status"] = "unavailable"
+            report.setdefault("errors", []).append(baseline_error)
+        else:
+            report["status"] = "available"
     report["errors"] = sorted(set(str(error) for error in report.get("errors", [])))
     return report
 
@@ -363,15 +406,22 @@ def collect_linux(target: dict[str, object], runner: Runner = run_command, exist
     return _identity_status(target, report)
 
 
-WINDOWS_SCRIPT = "$ErrorActionPreference='Stop'; $errors=@(); function Missing([string]$name) {$errors += \"$name unavailable\"}; $volumes=@(Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3' | Where-Object {$_.Size -gt 0} | ForEach-Object {[ordered]@{filesystem=$_.DeviceID; filesystemType=$_.FileSystem; totalBytes=[int64]$_.Size; usedBytes=([int64]$_.Size-[int64]$_.FreeSpace); availableBytes=[int64]$_.FreeSpace; capacity=(('{0:P2}' -f (([double]$_.Size-[double]$_.FreeSpace)/[double]$_.Size))); mountPoint=$_.DeviceID}}); $os=Get-CimInstance Win32_OperatingSystem; $cs=Get-CimInstance Win32_ComputerSystem; $pagefile=@(Get-CimInstance Win32_PageFileUsage | ForEach-Object {[ordered]@{path=$_.Name; allocatedBytes=([int64]$_.AllocatedBaseSize*1KB); usedBytes=([int64]$_.CurrentUsage*1KB)}}); $memory=[ordered]@{physical=[ordered]@{totalBytes=([int64]$cs.TotalPhysicalMemory); availableBytes=([int64]$os.FreePhysicalMemory*1KB)}; commit=[ordered]@{limitBytes=([int64]$os.TotalVirtualMemorySize*1KB); usedBytes=([int64](($os.TotalVirtualMemorySize-$os.FreeVirtualMemory)*1KB))}; pagefile=$pagefile}; $processes=@(Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 100 | ForEach-Object {[ordered]@{pid=[int]$_.Id; rssBytes=[int64]$_.WorkingSet64; name=$_.ProcessName}}); $hyperv=@(); if (Get-Command Get-VM -ErrorAction SilentlyContinue) {$hyperv=@(Get-VM | Select-Object -First 100 | ForEach-Object {[ordered]@{name=$_.Name; state=$_.State; memoryAssignedBytes=[int64]$_.MemoryAssigned}})} else {$errors += 'Hyper-V cmdlets unavailable'}; $vhd=@(Get-ChildItem -Path $env:SystemDrive\\ -Include *.vhd,*.vhdx -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 100 | ForEach-Object {[ordered]@{path=$_.FullName; bytes=[int64]$_.Length}}); $services=@(Get-CimInstance Win32_Service | Select-Object -First 100 | ForEach-Object {[ordered]@{name=$_.Name; state=$_.State; path=$_.PathName}}); $wsl=[bool](Get-Command wsl.exe -ErrorAction SilentlyContinue); $docker=[bool](Get-Command docker.exe -ErrorAction SilentlyContinue); $gpu=@(); if (Get-Command nvidia-smi.exe -ErrorAction SilentlyContinue) {$gpu=@(& nvidia-smi.exe --query-gpu=name,memory.total,memory.used,utilization.gpu --format=csv,noheader,nounits | Select-Object -First 16)} else {$errors += 'nvidia-smi unavailable'}; $o=[ordered]@{identity=$env:COMPUTERNAME; volumes=$volumes; inodes=@(); memory=$memory; processes=$processes; containers=@(); largeFiles=$vhd; deletedOpen=@(); psi=@(); oom=@(); cgroups=@(); hyperv=$hyperv; vhd=$vhd; services=$services; wsl=[ordered]@{present=$wsl}; docker=[ordered]@{present=$docker}; gpu=$gpu; errors=$errors}; $o|ConvertTo-Json -Depth 7 -Compress"
-POSIX_SCRIPT = r'''import json, os, re, shutil, socket, subprocess, sys
+WINDOWS_SCRIPT = "$ErrorActionPreference='Stop'; $errors=@(); function Missing([string]$name) {$errors += \"$name unavailable\"}; $volumes=@(Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3' | Where-Object {$_.Size -gt 0} | ForEach-Object {[ordered]@{filesystem=$_.DeviceID; filesystemType=$_.FileSystem; totalBytes=[int64]$_.Size; usedBytes=([int64]$_.Size-[int64]$_.FreeSpace); availableBytes=[int64]$_.FreeSpace; capacity=(('{0:P2}' -f (([double]$_.Size-[double]$_.FreeSpace)/[double]$_.Size))); mountPoint=$_.DeviceID}}); $os=Get-CimInstance Win32_OperatingSystem; $cs=Get-CimInstance Win32_ComputerSystem; $pagefile=@(Get-CimInstance Win32_PageFileUsage | ForEach-Object {[ordered]@{path=$_.Name; allocatedBytes=([int64]$_.AllocatedBaseSize*1KB); usedBytes=([int64]$_.CurrentUsage*1KB)}}); $memory=[ordered]@{physical=[ordered]@{totalBytes=([int64]$cs.TotalPhysicalMemory); availableBytes=([int64]$os.FreePhysicalMemory*1KB)}; commit=[ordered]@{limitBytes=([int64]$os.TotalVirtualMemorySize*1KB); usedBytes=([int64](($os.TotalVirtualMemorySize-$os.FreeVirtualMemory)*1KB))}; pagefile=$pagefile}; $processes=@(Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 100 | ForEach-Object {[ordered]@{pid=[int]$_.Id; rssBytes=[int64]$_.WorkingSet64; name=$_.ProcessName}}); $hyperv=@(); if (Get-Command Get-VM -ErrorAction SilentlyContinue) {$hyperv=@(Get-VM | Select-Object -First 100 | ForEach-Object {[ordered]@{name=$_.Name; state=$_.State; memoryAssignedBytes=[int64]$_.MemoryAssigned}})} else {$errors += 'Hyper-V cmdlets unavailable'}; $vhd=@(); if (Get-Command Get-VMHardDiskDrive -ErrorAction SilentlyContinue) { try { $vhd=@(Get-VM | Select-Object -First 16 | Get-VMHardDiskDrive | Select-Object -First 32 | ForEach-Object { $file=Get-Item -LiteralPath $_.Path -ErrorAction SilentlyContinue; if($file){[ordered]@{path=$_.Path; bytes=[int64]$file.Length}} }) } catch {$errors += 'Hyper-V disk evidence unavailable'} }; $services=@(Get-CimInstance Win32_Service | Select-Object -First 100 | ForEach-Object {[ordered]@{name=$_.Name; state=$_.State; path=$_.PathName}}); $wsl=[bool](Get-Command wsl.exe -ErrorAction SilentlyContinue); $docker=[bool](Get-Command docker.exe -ErrorAction SilentlyContinue); $gpu=@(); if (Get-Command nvidia-smi.exe -ErrorAction SilentlyContinue) {$gpu=@(& nvidia-smi.exe --query-gpu=name,memory.total,memory.used,utilization.gpu --format=csv,noheader,nounits | Select-Object -First 16)} else {$errors += 'nvidia-smi unavailable'}; $disks=@(); if (Get-Command Get-PhysicalDisk -ErrorAction SilentlyContinue) { try { $disks=@(Get-PhysicalDisk | Select-Object -First 16 | ForEach-Object {[ordered]@{device=([string]$_.FriendlyName).Substring(0,[Math]::Min(128,([string]$_.FriendlyName).Length)); status=([string]$_.HealthStatus).ToLowerInvariant(); source='windows-physical-disk'}}) } catch {$errors += 'physical disk health unavailable'} } else {$errors += 'Get-PhysicalDisk unavailable'}; $o=[ordered]@{identity=$env:COMPUTERNAME; volumes=$volumes; inodes=@(); memory=$memory; processes=$processes; containers=@(); largeFiles=$vhd; deletedOpen=@(); psi=@(); oom=@(); cgroups=@(); hyperv=$hyperv; vhd=$vhd; services=$services; wsl=[ordered]@{present=$wsl}; docker=[ordered]@{present=$docker}; gpu=$gpu; diskHealth=$disks; errors=$errors}; $o|ConvertTo-Json -Depth 7 -Compress"
+POSIX_SCRIPT = r'''import json, os, re, shutil, socket, subprocess, sys, time
 MAX=100
+OPTIONAL_BUDGET_SECONDS=20
+deadline=time.monotonic()+OPTIONAL_BUDGET_SECONDS
 errors=[]
+incomplete_evidence=[]
 roots=[]
 args=sys.argv[1:]
 for i,arg in enumerate(args):
     if arg == "--root" and i+1 < len(args): roots.append(args[i+1])
-def run(argv, timeout=20):
+def remaining(): return deadline-time.monotonic()
+def run(argv, timeout=20, optional=False):
+    if optional:
+        timeout=min(float(timeout),max(0.0,remaining()))
+        if timeout<=0: return 125,"","budget exhausted"
     try:
         p=subprocess.run(argv, capture_output=True, text=True, timeout=timeout, check=False)
         return p.returncode, p.stdout[:128000], p.stderr[:2000]
@@ -383,7 +433,11 @@ def number(value):
     try: return int(str(value).replace(",",""))
     except (TypeError,ValueError): return None
 def df(argv, inode=False):
-    code,out,_=run(argv)
+    code,out,_=run(argv,5)
+    evidence="inodes" if inode else "filesystems"
+    if code!=0:
+        incomplete_evidence.append({"evidence":evidence,"reason":"timeout" if code==124 else "command-failed","root":"/"})
+        errors.append(evidence+" baseline command failed")
     rows=[]
     for line in out.splitlines():
         fields=line.split(maxsplit=5 if inode else 6)
@@ -405,13 +459,14 @@ def meminfo():
     swap={"totalBytes":values.get("SwapTotal"),"availableBytes":values.get("SwapFree"),"usedBytes":(values.get("SwapTotal",0)-values.get("SwapFree",0))}
     return {"physical":physical,"swap":swap,"commit":{"limitBytes":values.get("CommitLimit"),"usedBytes":values.get("Committed_AS")}}
 def processes():
-    code,out,_=run(["ps","-eo","pid=,rss=,comm="])
+    code,out,_=run(["ps","-eo","pid=,rss=,comm="],optional=True)
     rows=[]
     for line in out.splitlines():
         f=line.split(None,2)
         if len(f)==3 and number(f[0]) is not None: rows.append({"pid":number(f[0]),"rssBytes":number(f[1])*1024,"name":f[2][:128]})
     return sorted(rows,key=lambda x:(-x["rssBytes"],x["pid"]))[:MAX]
 def read_text(path):
+    if remaining()<=0: return ""
     try: return open(path,encoding="ascii",errors="ignore").read()[:2000]
     except OSError: return ""
 def cgroup():
@@ -430,11 +485,14 @@ def psi():
     return result
 def deleted_open():
     result=[]
+    if remaining()<=0: return result
     try:
         for pid in os.listdir("/proc"):
+            if remaining()<=0: return result
             if not pid.isdigit(): continue
             fdroot="/proc/"+pid+"/fd"
             for fd in os.listdir(fdroot)[:MAX]:
+                if remaining()<=0: return result
                 try: link=os.readlink(fdroot+"/"+fd)
                 except OSError: continue
                 if " (deleted)" in link and not link.startswith("/memfd:"):
@@ -445,38 +503,70 @@ def deleted_open():
 def large_and_du():
     large=[]; summaries=[]
     for root in sorted(set(roots)):
-        code,out,_=run(["du","-x","-d","1","-B1",root],45)
-        if code==0:
+        code,out,_=run(["du","-x","-d","1","-B1",root],OPTIONAL_BUDGET_SECONDS,True)
+        if code!=0: incomplete_evidence.append({"evidence":"duSummaries","reason":"timeout" if code==124 else "budget-exhausted" if code==125 else "command-failed","root":root[:1000]})
+        if code not in (124,125):
             for line in out.splitlines()[:MAX]:
                 f=line.split("\t",1)
                 if len(f)==2 and number(f[0]) is not None: summaries.append({"path":f[1][:1000],"bytes":number(f[0])})
-        for base,dirs,files in os.walk(root):
-            dirs[:]=sorted(dirs)[:200]
-            for name in sorted(files)[:MAX]:
-                path=os.path.join(base,name)
-                try: size=os.stat(path,follow_symlinks=False).st_size
-                except OSError: continue
-                if size>200000000: large.append({"path":path[:1000],"bytes":size,"protected":False})
-                if len(large)>=MAX: return large,summaries
-    return large,summaries
+        code,out,_=run(["find",root,"-xdev","-type","f","-size","+200000000c","-printf","%s\\t%p\\n"],OPTIONAL_BUDGET_SECONDS,True)
+        if code!=0: incomplete_evidence.append({"evidence":"largeFiles","reason":"timeout" if code==124 else "budget-exhausted" if code==125 else "command-failed","root":root[:1000]})
+        if code not in (124,125):
+            for line in out.splitlines()[:MAX]:
+                f=line.split("\t",1)
+                if len(f)==2 and number(f[0]) is not None: large.append({"path":f[1][:1000],"bytes":number(f[0]),"protected":False})
+    return sorted(large,key=lambda x:(-x["bytes"],x["path"]))[:MAX],sorted(summaries,key=lambda x:x["path"])[:MAX]
+identity=socket.gethostname()[:128]
+filesystems=df(["df","-P","-T"])
+inodes=df(["df","-P","-i"],True)
+memory=meminfo()
+process_rows=processes()
 containers=[]
-code,out,_=run(["docker","ps","-a","--size","--format","{{json .}}"])
+code,out,_=run(["docker","ps","-a","--size","--format","{{json .}}"],optional=True)
 if code==0:
     for line in out.splitlines()[:MAX]:
         try:
             value=json.loads(line); containers.append({"id":str(value.get("ID",""))[:128],"name":str(value.get("Names",""))[:128],"state":str(value.get("State",""))[:32],"size":str(value.get("Size",""))[:128]})
         except json.JSONDecodeError: errors.append("docker ps returned invalid JSON")
-code,out,_=run(["docker","stats","--no-stream","--format","{{json .}}"])
+code,out,_=run(["docker","stats","--no-stream","--format","{{json .}}"],optional=True)
 if code==0:
     for line in out.splitlines()[:MAX]:
         try: containers.append({"name":json.loads(line).get("Name",""),"memory":json.loads(line).get("MemUsage","")[:128],"memoryNoStream":True})
         except json.JSONDecodeError: errors.append("docker stats returned invalid JSON")
 gpu=[]
-code,out,_=run(["nvidia-smi","--query-gpu=name,memory.total,memory.used,utilization.gpu","--format=csv,noheader,nounits"])
+code,out,_=run(["nvidia-smi","--query-gpu=name,memory.total,memory.used,utilization.gpu","--format=csv,noheader,nounits"],optional=True)
 if code==0: gpu=[line[:256] for line in out.splitlines()[:16]]
+def disk_health():
+    code,out,_=run(["lsblk","-dn","-J","-o","NAME,TYPE,MODEL"],5,True)
+    if code!=0:
+        incomplete_evidence.append({"evidence":"diskHealth","reason":"lsblk-unavailable","root":"/dev"})
+        return []
+    try: devices=json.loads(out).get("blockdevices",[])
+    except (ValueError,AttributeError):
+        incomplete_evidence.append({"evidence":"diskHealth","reason":"invalid-lsblk-json","root":"/dev"})
+        return []
+    rows=[]
+    for item in devices[:16]:
+        if not isinstance(item,dict) or item.get("type")!="disk": continue
+        name=str(item.get("name", ""))
+        if not re.fullmatch(r"[A-Za-z0-9._-]+",name): continue
+        path="/dev/"+name
+        model=str(item.get("model") or "")[:128]
+        if any(marker in model.lower() for marker in ("virtual", "qemu", "vmware", "vbox", "virtio")):
+            rows.append({"device":path,"status":"virtual","source":"lsblk"})
+            continue
+        code,out,_=run(["smartctl","-n","standby","-H","-j",path],3,True)
+        try: payload=json.loads(out)
+        except ValueError: payload={}
+        passed=payload.get("smart_status",{}).get("passed") if isinstance(payload,dict) else None
+        status="failed" if passed is False else "passed" if passed is True and code==0 else "unknown"
+        rows.append({"device":path,"status":status,"source":"smartctl"})
+        if status=="unknown": incomplete_evidence.append({"evidence":"diskHealth","reason":"smart-unavailable-or-incomplete","root":path})
+    return rows
+disks=disk_health()
 large,summaries=large_and_du()
 cg=cgroup()
-print(json.dumps({"schemaVersion":"resource-maintenance.audit.v1","identity":socket.gethostname()[:128],"filesystems":df(["df","-P","-T"]),"inodes":df(["df","-P","-i"],True),"memory":meminfo(),"processes":processes(),"containers":containers[:MAX],"largeFiles":large[:MAX],"duSummaries":summaries[:MAX],"deletedOpen":deleted_open(),"psi":psi(),"oom":cg.get("memory.events",{}),"cgroups":cg,"gpu":gpu,"errors":sorted(set(errors))},sort_keys=True,separators=(",",":")))'''
+print(json.dumps({"schemaVersion":"resource-maintenance.audit.v1","identity":identity,"filesystems":filesystems,"inodes":inodes,"memory":memory,"processes":process_rows,"containers":containers[:MAX],"largeFiles":large[:MAX],"duSummaries":summaries[:MAX],"deletedOpen":deleted_open(),"psi":psi(),"oom":cg.get("memory.events",{}),"cgroups":cg,"gpu":gpu,"diskHealth":disks,"incompleteEvidence":sorted(incomplete_evidence,key=lambda x:(x["root"],x["evidence"],x["reason"])),"errors":sorted(set(errors))},sort_keys=True,separators=(",",":")))'''
 
 
 def _normalise_windows(payload: dict[str, object]) -> dict[str, object]:
@@ -501,13 +591,20 @@ def _normalise_windows(payload: dict[str, object]) -> dict[str, object]:
         "wsl": payload.get("wsl", {}) if isinstance(payload.get("wsl"), dict) else {},
         "docker": payload.get("docker", {}) if isinstance(payload.get("docker"), dict) else {},
         "gpu": payload.get("gpu", []) if isinstance(payload.get("gpu"), list) else [],
+        "diskHealth": payload.get("diskHealth", []) if isinstance(payload.get("diskHealth"), list) else [],
     }
+    result["filesystems"] = [
+        {**row, "blocks": row.get("totalBytes"), "available": row.get("availableBytes")}
+        for row in result["filesystems"] if isinstance(row, dict)
+    ]
     result["processes"] = sorted((item for item in result["processes"] if isinstance(item, dict)), key=lambda row: (-int(row.get("rssBytes", 0)), int(row.get("pid", 0))))[:MAX_ROWS]
     return result
 
 
 def _normalise_posix(payload: dict[str, object]) -> dict[str, object]:
     result = _normalise_windows(payload)
+    result["filesystems"] = payload.get("filesystems", []) if isinstance(payload.get("filesystems"), list) else []
+    result["incompleteEvidence"] = payload.get("incompleteEvidence", []) if isinstance(payload.get("incompleteEvidence"), list) else []
     result.pop("hyperv", None); result.pop("vhd", None); result.pop("services", None); result.pop("wsl", None)
     return result
 
@@ -562,6 +659,24 @@ def _powershell_remote_command(roots: list[str]) -> str:
     return f"powershell.exe -NoProfile -NonInteractive -EncodedCommand {encoded}"
 
 
+def _transport_error(result: CommandResult) -> str:
+    """Return a bounded failure category without copying remote stderr into reports."""
+    if result.returncode == 124:
+        return "transport timeout"
+    message = result.stderr.casefold()
+    for marker, reason in (
+        ("could not resolve hostname", "endpoint DNS resolution failed"),
+        ("name or service not known", "endpoint DNS resolution failed"),
+        ("connection reset", "transport connection reset"),
+        ("connection refused", "transport connection refused"),
+        ("permission denied", "transport authentication failed"),
+        ("network is unreachable", "transport network unreachable"),
+    ):
+        if marker in message:
+            return reason
+    return f"transport failed with exit {result.returncode}"
+
+
 def collect_remote(
     target: dict[str, object],
     runner: Runner = run_command,
@@ -597,7 +712,7 @@ def collect_remote(
     argv = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", endpoint, remote_command]
     result = runner(argv, 30)
     if result.returncode:
-        return {"schemaVersion": SCHEMA, "target": {"id": target["id"], "platform": target["platform"], "transport": transport}, "status": "unavailable", "errors": [f"transport failed with exit {result.returncode}"]}
+        return {"schemaVersion": SCHEMA, "target": {"id": target["id"], "platform": target["platform"], "transport": transport}, "status": "unavailable", "errors": [_transport_error(result)]}
     parsed = _json(result.stdout.strip())
     if isinstance(parsed, dict):
         normalised = _normalise_windows(parsed) if transport == "ssh-powershell" else _normalise_posix(parsed)
@@ -631,6 +746,17 @@ def _used_percent(used: object, total: object) -> float | None:
         return round(used_number / total_number * 100, 4) if total_number > 0 else None
     except (TypeError, ValueError):
         return None
+
+
+def _protected_path(path: str, roots: Iterable[str], platform: str) -> bool:
+    module = ntpath if platform == "windows" else posixpath
+    candidate = module.normcase(module.normpath(path))
+    separator = "\\" if platform == "windows" else "/"
+    for root in roots:
+        protected = module.normcase(module.normpath(str(root)))
+        if candidate == protected or candidate.startswith(protected.rstrip(separator) + separator):
+            return True
+    return False
 
 
 def _candidate(target_id: str, target: dict[str, object], kind: str, subject: object, status: str, reason: str, bytes_value: int = 0, urgency: float = 0, growth: float = 0, reclaimability: float = 0, reversibility: float = 0, risk: float = 0, **extra: object) -> dict[str, object]:
@@ -675,6 +801,11 @@ def build_plan(inventory: dict[str, object], audits: Iterable[dict[str, object]]
             reason = f"identity mismatch: expected {expected_identity}, observed {observed_identity or '<empty>'}" if identity_mismatch else str((audit.get("errors") or ["target is not usable"])[0])
             candidates.append(_candidate(target_id, target, "target", status, status, reason, risk=10))
             continue
+        baseline_error = _baseline_error(target, audit)
+        if baseline_error:
+            target_states[target_id] = "unavailable"
+            candidates.append(_candidate(target_id, target, "target", "unavailable", "unavailable", baseline_error, risk=10))
+            continue
         target_states[target_id] = "available"
         thresholds = target.get("thresholds", {})
         growth = float(thresholds.get("growthBytesPerHour", 0) or 0)
@@ -707,8 +838,11 @@ def build_plan(inventory: dict[str, object], audits: Iterable[dict[str, object]]
                 candidates.append(_candidate(target_id, target, "pagefile", "pagefile", "review", "pagefile pressure requires named recovery", urgency=max(0, used-float(limit)), growth=growth, reclaimability=5, reversibility=10, risk=6, usedPercent=used, thresholdPercent=limit))
         for item in audit.get("largeFiles", []) if isinstance(audit.get("largeFiles"), list) else []:
             if isinstance(item, dict):
-                path = str(item.get("path", "")); protected = bool(item.get("protected")) or path in target.get("protectedPaths", [])
-                candidates.append(_candidate(target_id, target, "file", path, "blocked" if protected else "review", "protected path" if protected else "owner, age and recovery still required", int(item.get("bytes", 0)), urgency=35, growth=growth, reclaimability=min(100, int(item.get("bytes", 0))/10_000_000), reversibility=70 if not protected else 0, risk=9 if protected else 6, path=path))
+                path = str(item.get("path", "")); protected = bool(item.get("protected")) or _protected_path(path, target.get("protectedPaths", []), str(target.get("platform", "linux")))
+                candidates.append(_candidate(target_id, target, "file", path, "blocked" if protected else "review", "protected path" if protected else "owner, age and recovery still required", int(item.get("bytes", 0)), urgency=35, growth=growth, reclaimability=0 if protected else min(100, int(item.get("bytes", 0))/10_000_000), reversibility=70 if not protected else 0, risk=9 if protected else 6, path=path))
+        for disk in audit.get("diskHealth", []) if isinstance(audit.get("diskHealth"), list) else []:
+            if isinstance(disk, dict) and disk.get("status") in {"failed", "unhealthy", "warning"}:
+                candidates.append(_candidate(target_id, target, "disk-health", disk.get("device"), "review", "physical disk reports failed health; inspect with its owner", urgency=100, risk=8, device=disk.get("device")))
         for process in audit.get("processes", []) if isinstance(audit.get("processes"), list) else []:
             if isinstance(process, dict) and int(process.get("rssBytes", 0)) > 1024 * 1024 * 1024:
                 candidates.append(_candidate(target_id, target, "process", process.get("pid"), "blocked", "process termination is never automatic", int(process.get("rssBytes", 0)), urgency=50, growth=growth, reclaimability=10, reversibility=0, risk=10, pid=process.get("pid")))

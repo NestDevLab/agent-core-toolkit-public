@@ -4,11 +4,14 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import gzip
 import importlib.util
+import io
 import json
 import re
 import shlex
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -55,7 +58,7 @@ def proxmox_targets(parent_endpoint: str = "synthetic-proxmox") -> list[dict[str
 def posix_payload(identity: str = "synthetic-container") -> dict[str, object]:
     return {
         "identity": identity,
-        "volumes": [{"filesystem": "/dev/root", "available": 50, "blocks": 100, "mountPoint": "/"}],
+        "filesystems": [{"filesystem": "/dev/root", "available": 50, "blocks": 100, "mountPoint": "/"}],
         "inodes": [{"filesystem": "/dev/root", "available": 50, "inodes": 100, "mountPoint": "/"}],
         "memory": {"physical": {"totalBytes": 1000, "availableBytes": 400}, "swap": {"totalBytes": 100, "usedBytes": 20}},
         "processes": [{"pid": 3, "rssBytes": 800, "name": "worker"}],
@@ -65,8 +68,32 @@ def posix_payload(identity: str = "synthetic-container") -> dict[str, object]:
         "deletedOpen": [{"pid": 3, "path": "/tmp/deleted", "memoryBacked": False}],
         "duSummaries": [{"path": "/srv/example", "bytes": 900}],
         "largeFiles": [],
+        "incompleteEvidence": [],
         "errors": [],
     }
+
+
+def execute_posix_script(
+    roots: list[str], runner: object, monotonic: object
+) -> dict[str, object]:
+    def open_file(path: object, *args: object, **kwargs: object) -> io.StringIO:
+        if str(path) == "/proc/meminfo":
+            return io.StringIO("MemTotal: 1000 kB\nMemAvailable: 400 kB\nSwapTotal: 100 kB\nSwapFree: 80 kB\n")
+        raise OSError("synthetic unavailable")
+
+    output = io.StringIO()
+    argv = ["resource-audit", *[part for root in roots for part in ("--root", root)]]
+    with (
+        patch("builtins.open", side_effect=open_file),
+        patch("os.listdir", side_effect=OSError("synthetic unavailable")),
+        patch("socket.gethostname", return_value="synthetic-linux"),
+        patch("subprocess.run", side_effect=runner),
+        patch("time.monotonic", side_effect=monotonic),
+        patch.object(sys, "argv", argv),
+        contextlib.redirect_stdout(output),
+    ):
+        exec(MODULE.POSIX_SCRIPT, {})
+    return json.loads(output.getvalue())
 
 
 class Runner:
@@ -246,8 +273,9 @@ class ResourceAuditTests(unittest.TestCase):
         payload = posix_payload("synthetic-linux")
         target = {"id": "remote", "platform": "linux", "transport": "ssh-posix", "endpoint": "synthetic-host", "expectedIdentity": "synthetic-linux", "scanRoots": ["/srv/example"], "protectedPaths": ["/srv/example/live.db"]}
         seen: list[list[str]] = []
+        timeouts: list[int] = []
         def runner(argv: list[str], timeout: int) -> MODULE.CommandResult:
-            seen.append(argv); return MODULE.CommandResult(0, json.dumps(payload))
+            seen.append(argv); timeouts.append(timeout); return MODULE.CommandResult(0, json.dumps(payload))
         report = MODULE.collect_remote(target, runner=runner)
         self.assertEqual(report["status"], "available")
         self.assertEqual(report["filesystems"][0]["mountPoint"], "/")
@@ -255,6 +283,7 @@ class ResourceAuditTests(unittest.TestCase):
         self.assertEqual(report["processes"][0]["pid"], 3)
         self.assertEqual(report["psi"]["memory"], "some avg10=1")
         self.assertTrue(report["deletedOpen"])
+        self.assertEqual(timeouts, [30])
         self.assertEqual(seen[0][:6], ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "synthetic-host"])
         self.assertEqual(shlex.split(seen[0][6])[:3], ["python3", "-c", MODULE.POSIX_SCRIPT])
 
@@ -272,6 +301,233 @@ class ResourceAuditTests(unittest.TestCase):
         self.assertEqual(command[:7], ["pct", "exec", "42", "--", "python3", "-c", MODULE.POSIX_SCRIPT])
         self.assertNotIn("/bin/sh", command)
         compile(MODULE.POSIX_SCRIPT, "resource_audit.POSIX_SCRIPT", "exec")
+
+    def test_platform_normalization_preserves_native_disk_evidence(self) -> None:
+        filesystems = [{"filesystem": "/dev/root", "mountPoint": "/"}]
+        inodes = [{"filesystem": "/dev/root", "mountPoint": "/", "available": 50}]
+        posix = MODULE._normalise_posix({"filesystems": filesystems, "inodes": inodes})
+        self.assertEqual(posix["filesystems"], filesystems)
+        self.assertEqual(posix["inodes"], inodes)
+
+        volumes = [{"filesystem": "C:", "mountPoint": "C:\\", "totalBytes": 1000, "availableBytes": 500}]
+        windows = MODULE._normalise_windows({"filesystems": filesystems, "volumes": volumes, "inodes": []})
+        self.assertEqual(windows["filesystems"], [{**volumes[0], "blocks": 1000, "available": 500}])
+        self.assertEqual(windows["inodes"], [])
+
+    def test_posix_optional_budget_preserves_baseline_and_stops_commands(self) -> None:
+        calls: list[tuple[list[str], float]] = []
+        def runner(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+            calls.append((argv, float(kwargs["timeout"])))
+            if argv == ["df", "-P", "-T"]:
+                stdout = "Filesystem Type 1024-blocks Used Available Capacity Mounted on\n/dev/root ext4 100 50 50 50% /\n"
+            elif argv == ["df", "-P", "-i"]:
+                stdout = "Filesystem Inodes IUsed IFree IUse% Mounted on\n/dev/root 100 50 50 50% /\n"
+            elif argv and argv[0] == "lsblk":
+                stdout = '{"blockdevices":[]}'
+            else:
+                stdout = ""
+            return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+        ticks = iter([0.0, *([21.0] * 100)])
+        report = execute_posix_script(["/scan-b", "/scan-a"], runner, lambda: next(ticks))
+        self.assertEqual([argv for argv, _ in calls], [["df", "-P", "-T"], ["df", "-P", "-i"]])
+        self.assertEqual(report["identity"], "synthetic-linux")
+        self.assertEqual(report["filesystems"][0]["mountPoint"], "/")
+        self.assertEqual(report["inodes"][0]["available"], 50)
+        self.assertEqual(report["memory"]["physical"]["availableBytes"], 409600)
+        self.assertEqual(report["incompleteEvidence"], [
+            {"evidence": "diskHealth", "reason": "lsblk-unavailable", "root": "/dev"},
+            {"evidence": "duSummaries", "reason": "budget-exhausted", "root": "/scan-a"},
+            {"evidence": "largeFiles", "reason": "budget-exhausted", "root": "/scan-a"},
+            {"evidence": "duSummaries", "reason": "budget-exhausted", "root": "/scan-b"},
+            {"evidence": "largeFiles", "reason": "budget-exhausted", "root": "/scan-b"},
+        ])
+
+    def test_posix_large_file_scan_uses_budgeted_find(self) -> None:
+        calls: list[tuple[list[str], float]] = []
+        def runner(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+            calls.append((argv, float(kwargs["timeout"])))
+            if argv == ["find", "/scan", "-xdev", "-type", "f", "-size", "+200000000c", "-printf", "%s\\t%p\\n"]:
+                return subprocess.CompletedProcess(argv, 0, "300000000\t/scan/cache.bin\n", "")
+            return subprocess.CompletedProcess(argv, 0, "", "")
+
+        report = execute_posix_script(["/scan"], runner, lambda: 0.0)
+        find_calls = [(argv, timeout) for argv, timeout in calls if argv and argv[0] == "find"]
+        self.assertEqual(find_calls[0][0], ["find", "/scan", "-xdev", "-type", "f", "-size", "+200000000c", "-printf", "%s\\t%p\\n"])
+        self.assertGreater(find_calls[0][1], 0)
+        self.assertLessEqual(find_calls[0][1], 20)
+        self.assertEqual(report["largeFiles"], [{"bytes": 300000000, "path": "/scan/cache.bin", "protected": False}])
+        self.assertNotIn("os.walk", MODULE.POSIX_SCRIPT)
+
+    def test_posix_incomplete_evidence_is_deterministic_for_scan_timeouts(self) -> None:
+        def collect() -> dict[str, object]:
+            def runner(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+                if argv and argv[0] in {"du", "find"}:
+                    raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+                if argv and argv[0] == "lsblk":
+                    return subprocess.CompletedProcess(argv, 0, '{"blockdevices":[]}', "")
+                return subprocess.CompletedProcess(argv, 0, "", "")
+            return execute_posix_script(["/scan-b", "/scan-a", "/scan-b"], runner, lambda: 0.0)
+
+        first = collect()
+        second = collect()
+        expected = [
+            {"evidence": "duSummaries", "reason": "timeout", "root": "/scan-a"},
+            {"evidence": "largeFiles", "reason": "timeout", "root": "/scan-a"},
+            {"evidence": "duSummaries", "reason": "timeout", "root": "/scan-b"},
+            {"evidence": "largeFiles", "reason": "timeout", "root": "/scan-b"},
+        ]
+        self.assertEqual(first["incompleteEvidence"], expected)
+        self.assertEqual(second["incompleteEvidence"], expected)
+
+    def test_posix_df_timeout_and_nonzero_exit_cannot_produce_ready_plan(self) -> None:
+        target = INVENTORY["targets"][0]
+        inventory = {**INVENTORY, "targets": [target]}
+        for mode in ("timeout", "nonzero"):
+            def runner(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+                if argv == ["df", "-P", "-T"]:
+                    if mode == "timeout":
+                        raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+                    return subprocess.CompletedProcess(argv, 1, "Filesystem Type 1024-blocks Used Available Capacity Mounted on\n/dev/root ext4 100 50 50 50% /\n", "partial")
+                if argv == ["df", "-P", "-i"]:
+                    return subprocess.CompletedProcess(argv, 0, "Filesystem Inodes IUsed IFree IUse% Mounted on\n/dev/root 100 50 50 50% /\n", "")
+                return subprocess.CompletedProcess(argv, 0, "", "")
+            payload = execute_posix_script([], runner, lambda: 0.0)
+            self.assertIn("filesystems", {row["evidence"] for row in payload["incompleteEvidence"]})
+            payload.update({"target": {"id": target["id"]}, "identity": target["expectedIdentity"]})
+            report = MODULE._identity_status(target, payload)
+            self.assertEqual(report["status"], "unavailable")
+            plan = MODULE.build_plan(inventory, [report])
+            self.assertEqual(plan["targetStates"][target["id"]], "unavailable")
+            self.assertNotEqual(plan["state"], "ready")
+
+    def test_missing_physical_memory_cannot_produce_available_or_ready(self) -> None:
+        for target in INVENTORY["targets"]:
+            inventory = {**INVENTORY, "targets": [target]}
+            if target["platform"] == "windows":
+                payload = MODULE._normalise_windows({
+                    "identity": target["expectedIdentity"],
+                    "volumes": [{"filesystem": "C:", "mountPoint": "C:\\", "totalBytes": 1000, "availableBytes": 500}],
+                    "memory": {"physical": {"totalBytes": None, "availableBytes": None}},
+                })
+            else:
+                payload = posix_payload(target["expectedIdentity"])
+                payload["memory"]["physical"] = {"totalBytes": None, "availableBytes": None}
+            payload.update({"target": {"id": target["id"]}, "identity": target["expectedIdentity"], "errors": ["physical memory source unavailable"]})
+            report = MODULE._identity_status(target, dict(payload))
+            self.assertEqual(report["status"], "unavailable")
+            self.assertIn("physical memory baseline unavailable", report["errors"])
+            direct_report = {**payload, "status": "available"}
+            plan = MODULE.build_plan(inventory, [direct_report])
+            self.assertEqual(plan["targetStates"][target["id"]], "unavailable")
+            self.assertNotEqual(plan["state"], "ready")
+            invalid = {**payload, "memory": {"physical": {"totalBytes": 100, "availableBytes": 200}}, "status": "available"}
+            self.assertEqual(MODULE.build_plan(inventory, [invalid])["targetStates"][target["id"]], "unavailable")
+
+    def test_nonzero_optional_scan_preserves_partial_rows_with_incomplete_marker(self) -> None:
+        def runner(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+            if argv[0] == "du":
+                return subprocess.CompletedProcess(argv, 1, "100\t/scan\n", "permission denied")
+            if argv[0] == "find":
+                return subprocess.CompletedProcess(argv, 1, "300000000\t/scan/cache.bin\n", "permission denied")
+            return subprocess.CompletedProcess(argv, 0, "", "")
+        payload = execute_posix_script(["/scan"], runner, lambda: 0.0)
+        self.assertEqual(payload["duSummaries"], [{"path": "/scan", "bytes": 100}])
+        self.assertEqual(payload["largeFiles"], [{"path": "/scan/cache.bin", "bytes": 300000000, "protected": False}])
+        self.assertIn({"evidence": "duSummaries", "reason": "command-failed", "root": "/scan"}, payload["incompleteEvidence"])
+        self.assertIn({"evidence": "largeFiles", "reason": "command-failed", "root": "/scan"}, payload["incompleteEvidence"])
+
+    def test_windows_low_free_space_produces_disk_candidate(self) -> None:
+        target = INVENTORY["targets"][1]
+        inventory = {**INVENTORY, "targets": [target]}
+        payload = {"identity": target["expectedIdentity"], "volumes": [{"filesystem": "C:", "mountPoint": "C:\\", "totalBytes": 1000, "availableBytes": 10}], "memory": {"physical": {"totalBytes": 1000, "availableBytes": 500}}}
+        report = MODULE.collect_remote(target, runner=lambda argv, timeout: MODULE.CommandResult(0, json.dumps(payload)))
+        self.assertEqual(report["status"], "available")
+        plan = MODULE.build_plan(inventory, [report])
+        disks = [candidate for candidate in plan["candidates"] if candidate["kind"] == "filesystem"]
+        self.assertEqual(len(disks), 1)
+        self.assertEqual(disks[0]["freePercent"], 1)
+        self.assertEqual(plan["state"], "review")
+
+    def test_transport_errors_are_bounded_and_explain_unavailable_windows(self) -> None:
+        target = {"id": "windows", "platform": "windows", "transport": "ssh-powershell",
+                  "endpoint": "synthetic-host", "expectedIdentity": "SYNTHETIC", "scanRoots": ["C:\\Synthetic"],
+                  "protectedPaths": ["C:\\Synthetic\\protected"]}
+        def failing(stderr: str) -> dict[str, object]:
+            return MODULE.collect_remote(target, runner=lambda argv, timeout: MODULE.CommandResult(255, "", stderr))
+        self.assertEqual(failing("ssh: Could not resolve hostname synthetic-host: Name or service not known")["errors"],
+                         ["endpoint DNS resolution failed"])
+        self.assertEqual(failing("Connection reset by synthetic-host port 22")["errors"],
+                         ["transport connection reset"])
+        self.assertNotIn("synthetic-host", json.dumps(failing("Connection reset by synthetic-host port 22")))
+
+    def test_disk_health_skips_virtual_disks_and_reads_physical_health_passively(self) -> None:
+        calls: list[list[str]] = []
+        def runner(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+            calls.append(argv)
+            if argv and argv[0] == "lsblk":
+                return subprocess.CompletedProcess(argv, 0, json.dumps({"blockdevices": [
+                    {"name": "sda", "type": "disk", "model": "Virtual Disk"},
+                    {"name": "nvme0n1", "type": "disk", "model": "Physical NVMe"},
+                ]}), "")
+            if argv and argv[0] == "smartctl":
+                return subprocess.CompletedProcess(argv, 0, '{"smart_status":{"passed":true}}', "")
+            return subprocess.CompletedProcess(argv, 0, "", "")
+        report = execute_posix_script([], runner, lambda: 0.0)
+        self.assertEqual(report["diskHealth"], [
+            {"device": "/dev/sda", "status": "virtual", "source": "lsblk"},
+            {"device": "/dev/nvme0n1", "status": "passed", "source": "smartctl"},
+        ])
+        self.assertEqual([c for c in calls if c and c[0] == "smartctl"],
+                         [["smartctl", "-n", "standby", "-H", "-j", "/dev/nvme0n1"]])
+
+    def test_windows_health_is_normalized_without_recursive_drive_scan(self) -> None:
+        payload = {"identity": "SYNTHETIC-WINDOWS", "volumes": [], "memory": {},
+                   "diskHealth": [{"device": "synthetic-disk", "status": "warning", "source": "windows-physical-disk"}]}
+        normalized = MODULE._normalise_windows(payload)
+        self.assertEqual(normalized["diskHealth"], payload["diskHealth"])
+        self.assertIn("Get-PhysicalDisk", MODULE.WINDOWS_SCRIPT)
+        self.assertIn("Get-VMHardDiskDrive", MODULE.WINDOWS_SCRIPT)
+        self.assertNotIn("Get-ChildItem -Path $env:SystemDrive", MODULE.WINDOWS_SCRIPT)
+
+    def test_failed_disk_health_requires_review(self) -> None:
+        inventory = json.loads(json.dumps(INVENTORY))
+        target = inventory["targets"][0]
+        audit = posix_payload(target["expectedIdentity"])
+        audit.update({"target": {"id": target["id"]}, "status": "available", "diskHealth": [
+            {"device": "/dev/sdb", "status": "failed", "source": "smartctl"},
+        ]})
+        plan = MODULE.build_plan(inventory, [audit])
+        disks = [c for c in plan["candidates"] if c["kind"] == "disk-health"]
+        self.assertEqual(len(disks), 1)
+        self.assertEqual(disks[0]["status"], "review")
+        self.assertEqual(disks[0]["device"], "/dev/sdb")
+
+    def test_protected_descendants_are_not_cleanup_candidates(self) -> None:
+        inventory = json.loads(json.dumps(INVENTORY))
+        target = inventory["targets"][0]
+        target["protectedPaths"] = ["/var/lib/postgresql"]
+        audit = posix_payload(target["expectedIdentity"])
+        audit.update({"target": {"id": target["id"]}, "status": "available", "largeFiles": [
+            {"path": "/var/lib/postgresql/16/main/base/123", "bytes": 300000000, "protected": False},
+            {"path": "/var/lib/postgresql-backup/old", "bytes": 300000000, "protected": False},
+        ]})
+        plan = MODULE.build_plan(inventory, [audit])
+        files = {c["path"]: c for c in plan["candidates"] if c["kind"] == "file"}
+        self.assertEqual(files["/var/lib/postgresql/16/main/base/123"]["status"], "blocked")
+        self.assertEqual(files["/var/lib/postgresql/16/main/base/123"]["priority"]["reclaimability"], 0)
+        self.assertEqual(files["/var/lib/postgresql-backup/old"]["status"], "review")
+        self.assertTrue(MODULE._protected_path(r"c:\\data\\active\\db.vhdx", [r"C:\\Data\\Active"], "windows"))
+        self.assertFalse(MODULE._protected_path(r"C:\\Data\\Active-old\\db.vhdx", [r"C:\\Data\\Active"], "windows"))
+
+    def test_identity_matching_partial_posix_report_remains_available(self) -> None:
+        payload = posix_payload("synthetic-linux")
+        payload["incompleteEvidence"] = [{"evidence": "largeFiles", "reason": "timeout", "root": "/scan"}]
+        target = {"id": "remote", "platform": "linux", "transport": "ssh-posix", "endpoint": "synthetic-host", "expectedIdentity": "synthetic-linux", "scanRoots": ["/scan"], "protectedPaths": ["/scan/live.db"]}
+        report = MODULE.collect_remote(target, runner=lambda argv, timeout: MODULE.CommandResult(0, json.dumps(payload)))
+        self.assertEqual(report["status"], "available")
+        self.assertEqual(report["incompleteEvidence"], payload["incompleteEvidence"])
+        self.assertNotIn("incompleteEvidence", MODULE._normalise_windows({"volumes": [], "incompleteEvidence": payload["incompleteEvidence"]}))
 
     def test_pct_missing_or_invalid_parent_fails_before_runner(self) -> None:
         targets = proxmox_targets()
@@ -352,7 +608,7 @@ class ResourceAuditTests(unittest.TestCase):
         inventory = json.loads(json.dumps(INVENTORY)); inventory["targets"][0]["thresholds"].update({"diskFreePercent": 60, "inodeFreePercent": 60, "memoryAvailablePercent": 50, "swapUsedPercent": 10})
         inventory["targets"].append({"id": "child", "platform": "container", "transport": "ssh-posix", "endpoint": "synthetic-child", "expectedIdentity": "synthetic-child", "parent": "linux-lab", "authoritativeDocs": [{"path": "docs/child.md", "remoteOnly": True}], "scanRoots": ["/srv/example"], "protectedPaths": ["/srv/example/live.db"], "thresholds": {"diskFreePercent": 60, "memoryAvailablePercent": 10}})
         first = MODULE.collect_linux(INVENTORY["targets"][0], runner=Runner(), exists=lambda _: False)
-        child = {"schemaVersion": MODULE.SCHEMA, "target": {"id": "child"}, "status": "available", "identity": "synthetic-child", "filesystems": first["filesystems"], "inodes": [], "memory": {}, "processes": [], "largeFiles": []}
+        child = {"schemaVersion": MODULE.SCHEMA, "target": {"id": "child"}, "status": "available", "identity": "synthetic-child", "filesystems": first["filesystems"], "inodes": first["inodes"], "memory": first["memory"], "processes": [], "largeFiles": []}
         plan = MODULE.build_plan(inventory, [first, child])
         self.assertEqual(plan, MODULE.build_plan(inventory, [first, child]))
         self.assertEqual(plan["state"], "blocked")
@@ -381,7 +637,7 @@ class ResourceAuditTests(unittest.TestCase):
         def runner(argv: list[str], timeout: int) -> MODULE.CommandResult:
             return MODULE.CommandResult(0, json.dumps({
                 "identity": "synthetic-windows",
-                "volumes": [{"mountPoint": "C:\\", "availableBytes": 500}],
+                "volumes": [{"mountPoint": "C:\\", "totalBytes": 1000, "availableBytes": 500}],
                 "memory": {"physical": {"totalBytes": 1000, "availableBytes": 400}, "pagefile": []},
                 "processes": [{"pid": 9, "rssBytes": 900, "name": "worker"}],
             }))
