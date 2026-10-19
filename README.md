@@ -102,6 +102,7 @@ Starter skills:
 
 - `code-review`: findings-first technical review.
 - `conversation-handoff`: verified context transfer between sessions or agents.
+- `session-archive`: preserve a durable session summary outside primary memory, then archive natively.
 - `plan-task`: ordered planning with assumptions and stop points.
 - `decision-interview`: focused questions before a confident answer, opinion, decision, or plan.
 - `write-docs`: durable technical documentation.
