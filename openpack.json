@@ -1,7 +1,7 @@
 {
   "schemaVersion": 3,
   "name": "nestdev-core-toolkit",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "requires": {
     "self-improve": {
       "source": "git:https://github.com/eai-org/agent-toolkit.git#17f5861e66800e0c0af702ea837ad7911c42099f",
