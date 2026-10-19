@@ -335,14 +335,14 @@ def _valid_measurement(available: object, total: object) -> bool:
 
 def _baseline_error(target: dict[str, object], report: dict[str, object]) -> str | None:
     filesystems = report.get("filesystems")
-    if not isinstance(filesystems, list) or not any(
+    if not isinstance(filesystems, list) or not filesystems or not all(
         isinstance(row, dict) and _valid_measurement(row.get("available"), row.get("blocks"))
         for row in filesystems
     ):
         return "filesystem baseline unavailable"
     if str(target.get("platform", "")) != "windows":
         inodes = report.get("inodes")
-        if not isinstance(inodes, list) or not any(
+        if not isinstance(inodes, list) or not inodes or not all(
             isinstance(row, dict) and _valid_measurement(row.get("available"), row.get("inodes"))
             for row in inodes
         ):

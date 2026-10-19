@@ -616,6 +616,22 @@ class ResourceAuditTests(unittest.TestCase):
         priorities = [candidate["priority"] for candidate in plan["candidates"]]
         self.assertEqual(priorities, sorted(priorities, key=lambda p: (-p["urgency"], -p["growth"], -p["reclaimability"], -p["reversibility"], p["risk"])))
 
+    def test_planner_blocks_mixed_validity_baseline_rows(self) -> None:
+        for target in INVENTORY["targets"][:2]:
+            inventory = {**INVENTORY, "targets": [target]}
+            baseline = posix_payload(target["expectedIdentity"])
+            if target["platform"] == "windows":
+                baseline["inodes"] = []
+            for field, capacity in (("filesystems", "blocks"), ("inodes", "inodes")):
+                if field == "inodes" and target["platform"] == "windows":
+                    continue
+                audit = json.loads(json.dumps(baseline))
+                audit.update({"schemaVersion": MODULE.SCHEMA, "target": {"id": target["id"]}, "status": "available"})
+                audit[field].append({"filesystem": "synthetic-unknown", "mountPoint": "/unknown", "available": None, capacity: None})
+                plan = MODULE.build_plan(inventory, [audit])
+                self.assertEqual(plan["targetStates"][target["id"]], "unavailable")
+                self.assertNotEqual(plan["state"], "ready")
+
     def test_planner_blocks_identity_mismatch_even_if_audit_lies_about_status(self) -> None:
         audit = {"schemaVersion": MODULE.SCHEMA, "target": {"id": "linux-lab"}, "status": "available", "identity": "unexpected", "filesystems": [], "inodes": [], "memory": {}, "processes": [], "largeFiles": []}
         plan = MODULE.build_plan(INVENTORY, [audit])
