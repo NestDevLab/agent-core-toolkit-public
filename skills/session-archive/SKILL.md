@@ -1,6 +1,6 @@
 ---
 name: session-archive
-description: Session archive with a durable summary outside primary memory. Invoke manually only.
+description: Session archive with a durable summary outside primary memory. Invoke manually or through explicitly delegated lifecycle management.
 license: MIT
 metadata:
   author: NestDevLab
@@ -9,8 +9,16 @@ metadata:
 
 # Session archive
 
-Invocation authorizes preservation and native archiving of the current session, or another
-explicitly identified session. Creating this skill does not invoke it.
+## Authorization
+
+A user invocation authorizes preservation and native archiving of the current session or another
+explicitly identified session. An orchestrator may invoke this skill only under an explicit user
+delegation covering lifecycle management and archival of that session. Resolve the delegation
+and exact target before acting; do not infer authority from completion, inactivity, discovery,
+or another agent's recommendation. Respect user exclusions, revocation, and narrower scope.
+Creating, installing, or discovering this skill never invokes it.
+
+Every invocation must save and verify the durable summary below before requesting native archival.
 
 ## Preserve first
 
