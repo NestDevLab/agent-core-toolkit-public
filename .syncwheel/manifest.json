@@ -22,11 +22,30 @@
   "integration": {
     "base": "origin/main",
     "branch": "int/resource-ncdu-final",
-    "stacks": [],
+    "stacks": [
+      "resource-ncdu-final"
+    ],
     "strategy": "cherry-pick"
   },
   "repository_mode": "delivery",
-  "stacks": [],
+  "stacks": [
+    {
+      "base": "origin/main",
+      "branch": "syncwheel/draft/resource-ncdu-final",
+      "commits": [],
+      "id": "resource-ncdu-final",
+      "integration_branch": "int/resource-ncdu-final",
+      "meta": {
+        "purpose": "Deliver reviewed ncdu helper from current main without legacy replay"
+      },
+      "publication": {
+        "enabled": false
+      },
+      "state": "draft",
+      "target_branch": "main",
+      "target_remote": "origin"
+    }
+  ],
   "syncwheel_tracking": "git-tracked",
   "syncwheel_worktree_root": "var/syncwheel",
   "version": 2
