@@ -31,9 +31,9 @@
       "reason": "Audit reasoning quality before presenting a high-confidence answer.",
       "when": "Use when confidence is important but evidence, assumptions, or tradeoffs need another pass."
     },
-    "grill-me": {
+    "grilling": {
       "source": "skillkit:github:mattpocock/skills",
-      "select": ["skills/grill-me"],
+      "select": ["skills/grilling"],
       "reason": "Stress-test a plan, design, or opinion before finalizing it.",
       "when": "Use when the user asks to challenge the conclusion or when the stakes justify adversarial review."
     }
@@ -47,7 +47,7 @@
       "path": "skills",
       "items": {
         "decision-interview": {
-          "suggests": ["brainstorming", "good-thinking", "grill-me"]
+          "suggests": ["brainstorming", "good-thinking", "grilling"]
         },
         "plan-task": { "requires": ["skills/decision-interview"] }
       }
