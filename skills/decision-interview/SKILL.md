@@ -1,6 +1,6 @@
 ---
 name: decision-interview
-description: Use when the user asks to be interviewed with focused questions before a decision, answer, opinion, plan, or recommendation; wants QAO/question-answer-opinion mode; wants continued questioning until confidence is high; or challenges an answer and wants a correction loop.
+description: Use for focused decision interviews, QAO or correction loops, or an unresolved user choice that changes the next action.
 ---
 
 # Decision Interview
@@ -8,6 +8,15 @@ description: Use when the user asks to be interviewed with focused questions bef
 Use this skill to converge on a well-supported answer or opinion before acting.
 It supports the QAO pattern: the session alternates between focused questions, provisional answers,
 and explicit opinions until the remaining uncertainty is acceptable or the user redirects.
+
+## Entry gate
+
+Do not start a structured decision step when goals, information, and the authorized next action
+are already clear from standing rules, earlier approvals, sensible defaults, or facts the agent
+can verify. Act and report; never ask as filler. A default cannot supply required approval.
+If a specific method is needed, select it through Composition; do not run every companion or
+reproduce its process here. Use the Core Loop for focused uncertainty; a single unresolved
+choice needs only the Structured Question UI, not an interview.
 
 ## Core Loop
 
@@ -32,16 +41,27 @@ and explicit opinions until the remaining uncertainty is acceptable or the user 
 
 ### Structured Question UI
 
-When the harness exposes a structured question UI and using it is allowed, prefer it for short,
-answerable choice points. Use it when the user can answer with one of 2-3 mutually exclusive
-options, such as goal type, risk tolerance, preference, scope, or next-step priority.
+For discrete choices, use the first available UI permitted in the current mode: project/thread
+decision card (`request_decision` or buttons returning action IDs), terminal `AskUserQuestion`
+when the user is at the terminal, then the harness-native equivalent. Use a short numbered text
+list only when no native UI is usable; never invent a tool or change modes to obtain one.
+Open-ended context and sensitive nuance can remain plain text.
 
-- Ask one question at a time.
-- Put the recommended option first and mark it as recommended when the UI supports labels.
-- Keep option labels short and make descriptions explain the tradeoff.
-- Use plain text instead for open-ended context, sensitive nuance, or when the UI is unavailable.
-- If the question is helpful but not strictly blocking, allow the session to continue with the
-  recommended default when the harness supports auto-resolution.
+Put one decision in each box, with 2–4 mutually exclusive options within the UI's limits.
+Put the recommended option first and label it “Recommended”; give each option a one-line
+consequence. Make the question self-contained for a notification preview. Batch independent
+choices only as separate boxes or a multi-question box supported by that UI; never bury a choice
+in prose. Preserve the chosen workflow's dependency order and stopping conditions.
+
+Use stable option IDs and act on the returned ID, not its label. If the host returns only labels,
+resolve them through an explicit label-to-ID map; reject ambiguous, stale, or unmatched answers.
+Silence or a preselected option is not an answer. After acting, update the card with the outcome
+when supported and record the decision, option ID, timestamp, and outcome in the workflow's
+existing ledger/work item, without a parallel decision store.
+
+Irreversible, payment, and external-send approvals retain their written procedures and scope.
+The UI collects approval; it does not bypass a gate. If an authorized default already resolves
+an optional question, skip the question rather than treating non-response as consent.
 
 ## Answer Shape
 
@@ -69,13 +89,15 @@ Repeat until the user accepts the answer, chooses to stop, or the blocker is exp
 
 ## Composition
 
-This skill must work standalone. Treat companion skills as optional accelerators, not prerequisites.
+This skill must work standalone. Select only the existing method the task needs; companions are
+optional accelerators, not prerequisites. Their discrete choices use Structured Question UI
+above; this changes presentation, not their process. Clear authorized work uses none.
 
 - Use `brainstorming` or an equivalent divergent-thinking skill before convergence when the option
   space is too narrow, the user is still exploring, or a premature answer would hide better paths.
 - Use `good-thinking` or an equivalent reasoning-audit skill when confidence matters and the
   evidence, assumptions, or tradeoffs need a deliberate quality pass.
-- Use `grill-me` or an equivalent stress-test skill when the user wants a plan, design, or opinion
+- Use `grill-me` (the alias for `grilling`) or an equivalent stress-test skill when the user wants a plan, design, or opinion
   challenged aggressively before finalizing it.
 - Use `plan-task` or an equivalent planning skill when the conversation becomes an implementation
   plan with ordered steps, validation, or approval gates.
