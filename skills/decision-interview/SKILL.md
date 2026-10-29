@@ -97,8 +97,8 @@ above; this changes presentation, not their process. Clear authorized work uses 
   space is too narrow, the user is still exploring, or a premature answer would hide better paths.
 - Use `good-thinking` or an equivalent reasoning-audit skill when confidence matters and the
   evidence, assumptions, or tradeoffs need a deliberate quality pass.
-- Use `grill-me` (the alias for `grilling`) or an equivalent stress-test skill when the user wants a plan, design, or opinion
-  challenged aggressively before finalizing it.
+- Use `grilling` or an equivalent stress-test skill when the user wants a plan, design, or opinion
+  challenged aggressively before finalizing it; `grill-me` is the user-invoked alias.
 - Use `plan-task` or an equivalent planning skill when the conversation becomes an implementation
   plan with ordered steps, validation, or approval gates.
 - Use domain-specific skills whenever the target answer depends on specialized tools, schemas,
