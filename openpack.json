@@ -3,11 +3,10 @@
   "name": "nestdev-core-toolkit",
   "version": "0.6.0",
   "requires": {
-    "evolution": {
+    "decision-ui": {
       "source": ".",
       "mode": "pinned",
-      "select": ["fragments/skill-evolution.md"],
-      "runtimes": ["codex", "claude"]
+      "select": []
     },
     "self-improve": {
       "source": "git:https://github.com/eai-org/agent-toolkit.git#17f5861e66800e0c0af702ea837ad7911c42099f",
@@ -19,7 +18,7 @@
   "compositionRules": [
     {
       "target": "skills/*",
-      "include": "evolution:fragments/skill-evolution.md",
+      "include": "fragments/skill-evolution.md",
       "exclude": ["nestdev-core-toolkit:skills/skill-evolution"],
       "runtimes": ["codex", "claude"]
     }
@@ -55,7 +54,7 @@
         "decision-interview": {
           "suggests": ["brainstorming", "good-thinking", "grilling"]
         },
-        "plan-task": { "requires": ["skills/decision-interview"] }
+        "plan-task": { "requires": ["decision-ui:skills/decision-interview"] }
       }
     },
     {
