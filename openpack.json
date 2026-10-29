@@ -3,6 +3,12 @@
   "name": "nestdev-core-toolkit",
   "version": "0.6.0",
   "requires": {
+    "evolution": {
+      "source": ".",
+      "mode": "pinned",
+      "select": ["fragments/skill-evolution.md"],
+      "runtimes": ["codex", "claude"]
+    },
     "self-improve": {
       "source": "git:https://github.com/eai-org/agent-toolkit.git#17f5861e66800e0c0af702ea837ad7911c42099f",
       "mode": "pinned",
@@ -13,7 +19,7 @@
   "compositionRules": [
     {
       "target": "skills/*",
-      "include": "fragments/skill-evolution.md",
+      "include": "evolution:fragments/skill-evolution.md",
       "exclude": ["nestdev-core-toolkit:skills/skill-evolution"],
       "runtimes": ["codex", "claude"]
     }
