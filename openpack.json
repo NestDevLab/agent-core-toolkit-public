@@ -3,6 +3,11 @@
   "name": "nestdev-core-toolkit",
   "version": "0.6.0",
   "requires": {
+    "decision-ui": {
+      "source": ".",
+      "mode": "pinned",
+      "select": []
+    },
     "self-improve": {
       "source": "git:https://github.com/eai-org/agent-toolkit.git#17f5861e66800e0c0af702ea837ad7911c42099f",
       "mode": "pinned",
@@ -49,7 +54,7 @@
         "decision-interview": {
           "suggests": ["brainstorming", "good-thinking", "grilling"]
         },
-        "plan-task": { "requires": ["skills/decision-interview"] }
+        "plan-task": { "requires": ["decision-ui:skills/decision-interview"] }
       }
     },
     {
