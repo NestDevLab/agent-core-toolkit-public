@@ -14,8 +14,7 @@ execution or the change is obvious, narrow, low-risk, and reversible.
 
 - Resolve what the codebase can answer; ask only for choices the code cannot settle.
 - Ask one focused question at a time when a decision blocks the plan.
-- Prefer selectable options when the UI/tool supports them; otherwise give short recommended
-  choices in plain text.
+- For discrete choices, use `decision-interview`'s Structured Question UI contract; retain this planning workflow.
 - Put irreversible, external, costly, privileged, or ambiguous edits behind approval gates.
 - Treat "go ahead", "procedi", "do it", or equivalent confirmation as the implementation handoff.
 - Make validation part of the plan, not an afterthought.

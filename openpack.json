@@ -48,7 +48,8 @@
       "items": {
         "decision-interview": {
           "suggests": ["brainstorming", "good-thinking", "grill-me"]
-        }
+        },
+        "plan-task": { "requires": ["skills/decision-interview"] }
       }
     },
     {
