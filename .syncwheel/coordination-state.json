@@ -1,20 +1,20 @@
 {
   "changed_refs": {
-    "refs/heads/pr/resource-monitor-telemetry": "b5998a2ed657b65fe217b49929967df963a18eee"
+    "refs/heads/pr/resource-monitor-telemetry": "b17e3153300c8ca062023ba5879db18b8983e543"
   },
   "claims": {
     "refs/heads/int/resource-ncdu-final": "14390c575e331762f7d6b7696509ba07b58698a4",
-    "refs/heads/pr/resource-monitor-telemetry": "f8209612247068349efa7172ce1b35387d103c33",
+    "refs/heads/pr/resource-monitor-telemetry": "19a4a22309882801bdda119b91e7e3717694aa3e",
     "refs/heads/pr/resource-ncdu-final": "044229c642a7743097acea488459fe86fd61b14a",
     "refs/heads/syncwheel/draft/resource-monitor-telemetry": "b987e5f9fe085a545cf8dfe6e5841502ea3d93c7",
     "refs/heads/syncwheel/draft/resource-ncdu-final": "08ae0e8fcbd25f8dad1d3c7d427fdb5f0b4eb95c"
   },
   "coordination_id": "resource-ncdu-final",
-  "created_at": "2026-11-05T08:00:05+00:00",
+  "created_at": "2026-11-05T08:02:47+00:00",
   "installation_id": "e83434d1-e09b-4dd1-8bdf-a5f7970573c6",
   "managed_refs": {
     "refs/heads/int/resource-ncdu-final": "9d8b4caf3cf45edc787087d2d46b457466fc7b4e",
-    "refs/heads/pr/resource-monitor-telemetry": "b5998a2ed657b65fe217b49929967df963a18eee",
+    "refs/heads/pr/resource-monitor-telemetry": "b17e3153300c8ca062023ba5879db18b8983e543",
     "refs/heads/pr/resource-ncdu-final": "5162d9905e16838f8629a67b8c17cbc6bcc3a16f",
     "refs/heads/syncwheel/draft/resource-monitor-telemetry": "b5998a2ed657b65fe217b49929967df963a18eee",
     "refs/heads/syncwheel/draft/resource-ncdu-final": "2b895b14819849cf14ef8346b71382590845576e"
@@ -69,11 +69,11 @@
     "version": 2
   },
   "manifest_digest": "0d055f0fd785e57c0165b363fe83213f9df292d261ea5e307db6c9a3f616e232",
-  "operation_token": "8f515cfb-ce14-4554-8a0d-d58f6cea33af",
-  "parent_state": "e6ff415ffa391d567ab0321a05fb71ca7b6f4bd7",
+  "operation_token": "7cee2703-fbe2-4151-a621-54a161a809ab",
+  "parent_state": "d4ed97fcf433799451d0759a173118e713f82adb",
   "projection_status": "partial",
-  "publication_id": "decf2308-1bd0-43b1-a0af-bf01b453a4eb",
-  "publication_scope": "promote:resource-monitor-telemetry",
+  "publication_id": "db2d8131-1112-4bf8-ab28-6052251afaa4",
+  "publication_scope": "stack:resource-monitor-telemetry",
   "schema_version": 2,
   "syncwheel_version": "0.46.20",
   "tombstones": [
