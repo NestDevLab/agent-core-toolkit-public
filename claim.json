@@ -1,0 +1,11 @@
+{
+  "changed_refs": [
+    "refs/heads/pr/resource-monitor-telemetry"
+  ],
+  "claimed_at": "2026-11-05T08:00:05+00:00",
+  "coordination_id": "resource-ncdu-final",
+  "operation_token": "8f515cfb-ce14-4554-8a0d-d58f6cea33af",
+  "publication_scope": "promote:resource-monitor-telemetry",
+  "source_ref": "refs/heads/pr/resource-monitor-telemetry",
+  "syncwheel_version": "0.46.20"
+}
