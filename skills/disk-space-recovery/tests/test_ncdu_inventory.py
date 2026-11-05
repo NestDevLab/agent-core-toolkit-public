@@ -41,6 +41,7 @@ class InventoryTests(unittest.TestCase):
             root = Path(tmp)
             (root / 'hash-named-backup').write_bytes(b'SQLite format 3\x00payload')
             (root / 'node_modules').mkdir()
+            (root / 'node_modules' / 'payload.js').write_text('module.exports = 1;')
             (root / 'external').symlink_to(external, target_is_directory=True)
             (root / 'main.py').write_text('print(1)')
             (root / 'backup.tar').write_bytes(b'archive')
@@ -48,6 +49,15 @@ class InventoryTests(unittest.TestCase):
             self.assertEqual({r['kind'] for r in result['findings']},
                              {'sqlite-header', 'generated-payload', 'symlink-review', 'archive-review'})
             self.assertEqual((root / 'hash-named-backup').read_bytes(), b'SQLite format 3\x00payload')
+
+    def test_empty_generated_placeholders_are_not_payload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'dist').mkdir()
+            (root / 'dist' / '.gitkeep').touch()
+            self.assertEqual(MODULE.lane_payloads(root)['status'], 'clean')
+            (root / 'dist' / 'bundle.js').write_text('compiled')
+            self.assertEqual(MODULE.lane_payloads(root)['status'], 'violations')
 
     def test_reports_cannot_live_in_checkout(self):
         with tempfile.TemporaryDirectory() as tmp:

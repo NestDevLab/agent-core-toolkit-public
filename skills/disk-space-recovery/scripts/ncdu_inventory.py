@@ -106,7 +106,16 @@ def lane_payloads(root):
             elif name == '.git':
                 dirs.remove(name)
             elif name in forbidden:
-                findings.append({'path': str(path.relative_to(root)), 'kind': 'generated-payload'})
+                try:
+                    entries = list(path.iterdir())
+                    placeholder_only = not entries or all(
+                        item.name == '.gitkeep' and not item.is_symlink()
+                        and item.is_file() and item.stat().st_size == 0
+                        for item in entries)
+                    if not placeholder_only:
+                        findings.append({'path': str(path.relative_to(root)), 'kind': 'generated-payload'})
+                except OSError as exc:
+                    errors.append(str(exc))
                 dirs.remove(name)
         for name in files:
             path = Path(base) / name
