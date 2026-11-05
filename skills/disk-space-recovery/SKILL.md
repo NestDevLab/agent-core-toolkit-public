@@ -54,6 +54,12 @@ committed/pushed and inspect current consumers before retiring any payload.
 Periodic pressure checks use cheap filesystem/memory counters, not repeated full
 scans; a configured checker is not proof of notification delivery.
 
+Use `scripts/resource_monitor.py --config /external/config.json --state
+/external/private/state.json --report /external/private/latest.json` for cheap
+local Linux observations. See [monitor.md](references/monitor.md) for thresholds,
+bounded history, CPU warm-up, hardware evidence and scheduler boundaries. It
+observes only; pressure never authorizes deletion or automatic process limits.
+
 Use `resource-maintenance.inventory.v1` for target identity, platform, transport,
 scan roots, protected paths, thresholds, and authoritative documents. Every
 inventory declares `docRoot`; each document declares `remoteOnly`, and local
