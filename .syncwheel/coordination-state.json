@@ -1,16 +1,20 @@
 {
-  "changed_refs": {},
+  "changed_refs": {
+    "refs/heads/syncwheel/draft/resource-monitor-telemetry": "b5998a2ed657b65fe217b49929967df963a18eee"
+  },
   "claims": {
     "refs/heads/int/resource-ncdu-final": "14390c575e331762f7d6b7696509ba07b58698a4",
     "refs/heads/pr/resource-ncdu-final": "044229c642a7743097acea488459fe86fd61b14a",
+    "refs/heads/syncwheel/draft/resource-monitor-telemetry": "9125a55bc55657eb2a86a02f23c1249b7c59cc22",
     "refs/heads/syncwheel/draft/resource-ncdu-final": "08ae0e8fcbd25f8dad1d3c7d427fdb5f0b4eb95c"
   },
   "coordination_id": "resource-ncdu-final",
-  "created_at": "2026-11-05T07:43:57+00:00",
+  "created_at": "2026-11-05T07:51:53+00:00",
   "installation_id": "e83434d1-e09b-4dd1-8bdf-a5f7970573c6",
   "managed_refs": {
     "refs/heads/int/resource-ncdu-final": "9d8b4caf3cf45edc787087d2d46b457466fc7b4e",
     "refs/heads/pr/resource-ncdu-final": "5162d9905e16838f8629a67b8c17cbc6bcc3a16f",
+    "refs/heads/syncwheel/draft/resource-monitor-telemetry": "b5998a2ed657b65fe217b49929967df963a18eee",
     "refs/heads/syncwheel/draft/resource-ncdu-final": "2b895b14819849cf14ef8346b71382590845576e"
   },
   "manifest": {
@@ -39,18 +43,34 @@
         "role": "canonical"
       },
       "branch": "int/resource-ncdu-final",
-      "stacks": [],
+      "stacks": [
+        "resource-monitor-telemetry"
+      ],
       "strategy": "cherry-pick"
     },
-    "stacks": [],
+    "stacks": [
+      {
+        "base": {
+          "kind": "remote-ref",
+          "ref": "refs/heads/main",
+          "role": "canonical"
+        },
+        "branch": "syncwheel/draft/resource-monitor-telemetry",
+        "commits": [],
+        "id": "resource-monitor-telemetry",
+        "integration_branch": "int/resource-ncdu-final",
+        "state": "draft",
+        "target_branch": "main"
+      }
+    ],
     "version": 2
   },
   "manifest_digest": "0d055f0fd785e57c0165b363fe83213f9df292d261ea5e307db6c9a3f616e232",
-  "operation_token": "bdafc6ca-ed12-412c-981d-1da61cc7e19b",
-  "parent_state": "967434de24fb26f3fb5c753923ae65fdb7545a0e",
+  "operation_token": "f5036200-e54a-4471-abbe-1d95ae8b4dd2",
+  "parent_state": "6742793c00b1efb4835ed24e8f2e0a752b8ed658",
   "projection_status": "partial",
-  "publication_id": "93b1c138-6118-492e-8959-cd7758e3b3c7",
-  "publication_scope": "close:resource-ncdu-final",
+  "publication_id": "fa43d057-7fd8-4416-a09a-bb937eeb82b9",
+  "publication_scope": "create:resource-monitor-telemetry",
   "schema_version": 2,
   "syncwheel_version": "0.46.20",
   "tombstones": [
