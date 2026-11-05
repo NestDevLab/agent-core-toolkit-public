@@ -1,14 +1,12 @@
 {
-  "changed_refs": {
-    "refs/heads/pr/resource-ncdu-final": "5162d9905e16838f8629a67b8c17cbc6bcc3a16f"
-  },
+  "changed_refs": {},
   "claims": {
     "refs/heads/int/resource-ncdu-final": "14390c575e331762f7d6b7696509ba07b58698a4",
-    "refs/heads/pr/resource-ncdu-final": "a23ee3d5577d94251d06f6a123c1df63154f4cf6",
+    "refs/heads/pr/resource-ncdu-final": "044229c642a7743097acea488459fe86fd61b14a",
     "refs/heads/syncwheel/draft/resource-ncdu-final": "08ae0e8fcbd25f8dad1d3c7d427fdb5f0b4eb95c"
   },
   "coordination_id": "resource-ncdu-final",
-  "created_at": "2026-11-05T07:39:04+00:00",
+  "created_at": "2026-11-05T07:43:57+00:00",
   "installation_id": "e83434d1-e09b-4dd1-8bdf-a5f7970573c6",
   "managed_refs": {
     "refs/heads/int/resource-ncdu-final": "9d8b4caf3cf45edc787087d2d46b457466fc7b4e",
@@ -41,37 +39,18 @@
         "role": "canonical"
       },
       "branch": "int/resource-ncdu-final",
-      "stacks": [
-        "resource-ncdu-final"
-      ],
+      "stacks": [],
       "strategy": "cherry-pick"
     },
-    "stacks": [
-      {
-        "base": {
-          "kind": "remote-ref",
-          "ref": "refs/heads/main",
-          "role": "canonical"
-        },
-        "branch": "pr/resource-ncdu-final",
-        "commits": [
-          "2b895b14819849cf14ef8346b71382590845576e",
-          "e3cc09ad39abd4fa41184ecb38363e4d184794da",
-          "5162d9905e16838f8629a67b8c17cbc6bcc3a16f"
-        ],
-        "id": "resource-ncdu-final",
-        "integration_branch": "int/resource-ncdu-final",
-        "target_branch": "main"
-      }
-    ],
+    "stacks": [],
     "version": 2
   },
   "manifest_digest": "0d055f0fd785e57c0165b363fe83213f9df292d261ea5e307db6c9a3f616e232",
-  "operation_token": "3604a77d-b02d-4859-9ada-b685dd10ef1c",
-  "parent_state": "1c6035c443045d7383cfcd7402157472d275c599",
+  "operation_token": "bdafc6ca-ed12-412c-981d-1da61cc7e19b",
+  "parent_state": "967434de24fb26f3fb5c753923ae65fdb7545a0e",
   "projection_status": "partial",
-  "publication_id": "2abf1abb-793c-453a-8130-76f67c1e5fbb",
-  "publication_scope": "stack:resource-ncdu-final",
+  "publication_id": "93b1c138-6118-492e-8959-cd7758e3b3c7",
+  "publication_scope": "close:resource-ncdu-final",
   "schema_version": 2,
   "syncwheel_version": "0.46.20",
   "tombstones": [
@@ -81,6 +60,14 @@
       "reason": "promoted",
       "ref": "refs/heads/syncwheel/draft/resource-ncdu-final",
       "remote_tip": "2b895b14819849cf14ef8346b71382590845576e",
+      "stack": "resource-ncdu-final"
+    },
+    {
+      "branch": "pr/resource-ncdu-final",
+      "closed_at": "2026-11-05T07:43:48+00:00",
+      "reason": "absorbed",
+      "ref": "refs/heads/pr/resource-ncdu-final",
+      "remote_tip": null,
       "stack": "resource-ncdu-final"
     }
   ]
