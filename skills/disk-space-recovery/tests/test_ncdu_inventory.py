@@ -15,6 +15,17 @@ from ncdu_stream import summary as stream_summary
 
 
 class InventoryTests(unittest.TestCase):
+    def test_configured_state_cannot_bypass_source_boundary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / 'source'
+            repo.mkdir()
+            (repo / '.git').mkdir()
+            state = repo / 'state'
+            state.mkdir()
+            with patch.dict(MODULE.os.environ, {'XDG_STATE_HOME': str(state)}):
+                with self.assertRaises(ValueError):
+                    MODULE.outside_checkout(state / 'audit.gz')
+
     def test_streaming_reader_rejects_truncation(self):
         with self.assertRaises(ValueError):
             stream_summary(io.StringIO('[1,2,{},[{\"name\":\"/\"}]'))
@@ -82,7 +93,7 @@ class InventoryTests(unittest.TestCase):
             (root / '.git').mkdir()
             state = root / 'state'
             state.mkdir()
-            with patch.dict(MODULE.os.environ, {'XDG_STATE_HOME': str(state)}):
+            with patch.dict(MODULE.os.environ, {'XDG_STATE_HOME': str(state)}), patch.object(MODULE.Path, 'home', return_value=root):
                 self.assertEqual(MODULE.outside_checkout(state / 'audit.gz'), state / 'audit.gz')
                 nested = state / 'checkout'
                 nested.mkdir()

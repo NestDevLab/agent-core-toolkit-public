@@ -12,12 +12,13 @@ import tempfile
 def outside_checkout(path):
     path = Path(path).resolve()
     state = Path(os.environ.get('XDG_STATE_HOME', Path.home() / '.local/state')).resolve()
-    for parent in (path.parent, *path.parents):
-        # A dotfiles repository may own the home directory; its external state
-        # directory is allowed, but nested checkouts below state are not.
-        if parent == state:
-            break
+    home = Path.home().resolve()
+    for parent in path.parents:
         if (parent / '.git').exists():
+            # Only the home dotfiles repository may enclose explicit state.
+            # A configured XDG_STATE_HOME cannot exempt nested source repos.
+            if parent == home and state != home and state.is_relative_to(home) and path.is_relative_to(state):
+                continue
             raise ValueError('Reports must be outside Git checkouts and lanes')
     return path
 
