@@ -1,0 +1,11 @@
+{
+  "changed_refs": [
+    "refs/heads/pr/resource-ncdu-final"
+  ],
+  "claimed_at": "2026-11-05T07:25:30+00:00",
+  "coordination_id": "resource-ncdu-final",
+  "operation_token": "4469a30b-c568-4723-a46e-e3c223f68295",
+  "publication_scope": "promote:resource-ncdu-final",
+  "source_ref": "refs/heads/pr/resource-ncdu-final",
+  "syncwheel_version": "0.46.20"
+}
