@@ -1,18 +1,18 @@
 {
   "changed_refs": {
-    "refs/heads/pr/resource-ncdu-final": "e3cc09ad39abd4fa41184ecb38363e4d184794da"
+    "refs/heads/pr/resource-ncdu-final": "5162d9905e16838f8629a67b8c17cbc6bcc3a16f"
   },
   "claims": {
     "refs/heads/int/resource-ncdu-final": "14390c575e331762f7d6b7696509ba07b58698a4",
-    "refs/heads/pr/resource-ncdu-final": "770bee58b7fbadf89d6c9d2e59f6a546deac8a94",
+    "refs/heads/pr/resource-ncdu-final": "a23ee3d5577d94251d06f6a123c1df63154f4cf6",
     "refs/heads/syncwheel/draft/resource-ncdu-final": "08ae0e8fcbd25f8dad1d3c7d427fdb5f0b4eb95c"
   },
   "coordination_id": "resource-ncdu-final",
-  "created_at": "2026-11-05T07:30:18+00:00",
+  "created_at": "2026-11-05T07:39:04+00:00",
   "installation_id": "e83434d1-e09b-4dd1-8bdf-a5f7970573c6",
   "managed_refs": {
     "refs/heads/int/resource-ncdu-final": "9d8b4caf3cf45edc787087d2d46b457466fc7b4e",
-    "refs/heads/pr/resource-ncdu-final": "e3cc09ad39abd4fa41184ecb38363e4d184794da",
+    "refs/heads/pr/resource-ncdu-final": "5162d9905e16838f8629a67b8c17cbc6bcc3a16f",
     "refs/heads/syncwheel/draft/resource-ncdu-final": "2b895b14819849cf14ef8346b71382590845576e"
   },
   "manifest": {
@@ -56,7 +56,8 @@
         "branch": "pr/resource-ncdu-final",
         "commits": [
           "2b895b14819849cf14ef8346b71382590845576e",
-          "e3cc09ad39abd4fa41184ecb38363e4d184794da"
+          "e3cc09ad39abd4fa41184ecb38363e4d184794da",
+          "5162d9905e16838f8629a67b8c17cbc6bcc3a16f"
         ],
         "id": "resource-ncdu-final",
         "integration_branch": "int/resource-ncdu-final",
@@ -66,10 +67,10 @@
     "version": 2
   },
   "manifest_digest": "0d055f0fd785e57c0165b363fe83213f9df292d261ea5e307db6c9a3f616e232",
-  "operation_token": "b1a79543-eea5-4441-a963-268565dc3a03",
-  "parent_state": "0d1f5e129197d98ac30afaab627430293e565fc2",
+  "operation_token": "3604a77d-b02d-4859-9ada-b685dd10ef1c",
+  "parent_state": "1c6035c443045d7383cfcd7402157472d275c599",
   "projection_status": "partial",
-  "publication_id": "da6e33c2-0634-4eb5-ae36-6f831b67c353",
+  "publication_id": "2abf1abb-793c-453a-8130-76f67c1e5fbb",
   "publication_scope": "stack:resource-ncdu-final",
   "schema_version": 2,
   "syncwheel_version": "0.46.20",
