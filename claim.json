@@ -1,11 +1,11 @@
 {
-  "changed_refs": [
-    "refs/heads/pr/resource-ncdu-final"
-  ],
-  "claimed_at": "2026-11-05T07:39:04+00:00",
+  "changed_refs": [],
+  "claimed_at": "2026-11-05T07:43:57+00:00",
+  "closed": true,
   "coordination_id": "resource-ncdu-final",
-  "operation_token": "3604a77d-b02d-4859-9ada-b685dd10ef1c",
-  "publication_scope": "stack:resource-ncdu-final",
+  "operation_token": "bdafc6ca-ed12-412c-981d-1da61cc7e19b",
+  "publication_scope": "close:resource-ncdu-final",
+  "reason": "absorbed",
   "source_ref": "refs/heads/pr/resource-ncdu-final",
   "syncwheel_version": "0.46.20"
 }
