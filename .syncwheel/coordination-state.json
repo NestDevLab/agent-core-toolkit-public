@@ -1,18 +1,17 @@
 {
   "changed_refs": {
-    "refs/heads/int/resource-ncdu-final": "9d8b4caf3cf45edc787087d2d46b457466fc7b4e",
-    "refs/heads/syncwheel/draft/resource-ncdu-final": "2c39a0c88beebe0499ecf030de5836500509359c"
+    "refs/heads/syncwheel/draft/resource-ncdu-final": "2b895b14819849cf14ef8346b71382590845576e"
   },
   "claims": {
     "refs/heads/int/resource-ncdu-final": "14390c575e331762f7d6b7696509ba07b58698a4",
-    "refs/heads/syncwheel/draft/resource-ncdu-final": "e791998de10079ad8e46385ca6161d60c1b1c35c"
+    "refs/heads/syncwheel/draft/resource-ncdu-final": "d2ce2cfbd135370b785dbfa060b41bdf176c2e3c"
   },
   "coordination_id": "resource-ncdu-final",
-  "created_at": "2026-11-05T07:23:41+00:00",
+  "created_at": "2026-11-05T07:25:12+00:00",
   "installation_id": "e83434d1-e09b-4dd1-8bdf-a5f7970573c6",
   "managed_refs": {
     "refs/heads/int/resource-ncdu-final": "9d8b4caf3cf45edc787087d2d46b457466fc7b4e",
-    "refs/heads/syncwheel/draft/resource-ncdu-final": "2c39a0c88beebe0499ecf030de5836500509359c"
+    "refs/heads/syncwheel/draft/resource-ncdu-final": "2b895b14819849cf14ef8346b71382590845576e"
   },
   "manifest": {
     "coordination": {
@@ -53,7 +52,9 @@
           "role": "canonical"
         },
         "branch": "syncwheel/draft/resource-ncdu-final",
-        "commits": [],
+        "commits": [
+          "2b895b14819849cf14ef8346b71382590845576e"
+        ],
         "id": "resource-ncdu-final",
         "integration_branch": "int/resource-ncdu-final",
         "state": "draft",
@@ -63,11 +64,11 @@
     "version": 2
   },
   "manifest_digest": "0d055f0fd785e57c0165b363fe83213f9df292d261ea5e307db6c9a3f616e232",
-  "operation_token": "4a10583a-a47d-45c0-b0aa-cd807c0326c3",
-  "parent_state": null,
+  "operation_token": "38dac945-9628-409a-8b0a-e00f440dcd76",
+  "parent_state": "658ea829a0b8c55f211773654bb4ed1c2c6a3db4",
   "projection_status": "partial",
-  "publication_id": "6c9e8178-4727-48d2-bedb-ee1c64d6ebf4",
-  "publication_scope": "create:resource-ncdu-final",
+  "publication_id": "8553e1d3-6d4b-475c-bbe8-49dd8fa1e5cd",
+  "publication_scope": "stack:resource-ncdu-final",
   "schema_version": 2,
   "syncwheel_version": "0.46.20",
   "tombstones": []
