@@ -2,7 +2,7 @@
 name: disk-space-recovery
 description: Audit disk and RAM pressure across declared hosts, containers, hypervisors, and Windows targets. Use for storage growth, memory pressure, log/cache/archive classification, or safe cleanup planning.
 metadata:
-  version: "0.2"
+  version: "0.3"
 ---
 
 # Disk and Resource Recovery Base
@@ -31,6 +31,28 @@ Never use a global prune, global log flush, unrestricted `rm`, unrestricted data
 recoverable backup when the approved procedure permits it.
 
 ## First pass: declared targets
+
+For local disk growth, prefer one read-only `ncdu` export over repeated recursive
+`du`/`find` scans. Run at idle I/O priority, one filesystem at a time; never enable
+deletion or follow symlinks. Store exports and reports outside repositories/lanes.
+An interrupted export is incomplete evidence; retain its identity, do not restart
+blindly. Reuse the completed export for ranking and later comparisons:
+
+```bash
+ionice -c3 nice -n 19 python3 scripts/ncdu_inventory.py scan \
+  --root /srv --output /external/state/inventory.json.gz
+python3 scripts/ncdu_inventory.py summary /external/state/inventory.json.gz
+python3 scripts/ncdu_inventory.py lane-check /path/to/code-lane
+```
+
+Syncwheel lanes contain code only. Keep dependencies, databases/sidecars, test
+datasets, caches, builds and backups in owned external state with a bounded
+lifecycle; redirect test temp/output paths before execution. `lane-check` reports
+violations and SQLite headers hidden behind renamed files; archives and symlink
+targets remain unclassified. Findings never authorize deletion. Prove source is
+committed/pushed and inspect current consumers before retiring any payload.
+Periodic pressure checks use cheap filesystem/memory counters, not repeated full
+scans; a configured checker is not proof of notification delivery.
 
 Use `resource-maintenance.inventory.v1` for target identity, platform, transport,
 scan roots, protected paths, thresholds, and authoritative documents. Every
