@@ -34,6 +34,7 @@ choice needs only the Structured Question UI, not an interview.
 ## Question Style
 
 - Ask concrete questions that reduce decision-relevant uncertainty.
+- Ask in the language the user is writing in.
 - Explain why the question matters only when that is not obvious.
 - Offer a recommended default when the user can choose among plausible options.
 - Avoid interrogating for its own sake; stop once more answers would not materially improve the result.
