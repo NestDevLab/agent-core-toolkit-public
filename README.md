@@ -81,6 +81,16 @@ for prerequisites, context limits, and the optional script-path override.
 - `skills` -> `skills/`
 - `hooks` -> opt-in Codex, Claude, and Copilot configurations
 
+## Claude Plugin Marketplace
+
+`.claude-plugin/marketplace.json` publishes selected skills as the `nestdev-core` plugin. In Claude Code:
+
+```text
+/plugin install nestdev-core --marketplace NestDevLab/agent-core-toolkit-public
+```
+
+On claude.ai, add `NestDevLab/agent-core-toolkit-public` as a marketplace under Customize > Plugins.
+
 ## Skill Evolution
 
 OpenPack v3 injects `fragments/skill-evolution.md` into every rendered skill when this toolkit is

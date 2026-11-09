@@ -1,0 +1,15 @@
+{
+  "name": "nestdev-agent-skills",
+  "description": "Selected NestDevLab agent skills for claude.ai accounts and projects",
+  "owner": { "name": "NestDevLab" },
+  "plugins": [
+    {
+      "name": "nestdev-core",
+      "source": "./",
+      "strict": false,
+      "description": "Shared agent skills",
+      "author": { "name": "NestDevLab" },
+      "skills": ["./skills/decision-interview"]
+    }
+  ]
+}
