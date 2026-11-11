@@ -54,6 +54,20 @@ consequence. Make the question self-contained for a notification preview. Batch 
 choices only as separate boxes or a multi-question box supported by that UI; never bury a choice
 in prose. Preserve the chosen workflow's dependency order and stopping conditions.
 
+#### Open answer, always
+
+Buttons never limit the user: every box must leave a way to answer in their own words.
+
+- If the UI has a native free-text field (for example `AskUserQuestion`'s built-in "Other"), use it.
+- If it does not (for example `request_decision`), make the last option "Other: I'll write my
+  answer" (in the user's language) with the consequence "type your answer or question in the chat".
+  This takes one of the UI's option slots, so keep at most limit−1 real options.
+- When the user picks that option, reply at once in the same thread asking for their answer in one
+  line, and treat the next message as the answer. If the host offers an editable text card (a draft
+  the user edits and sends back), post that instead so the user has a box to type into.
+- A typed message that answers an open box counts as the answer even without a button press:
+  act on it and close or update the card with what was decided.
+
 Use stable option IDs and act on the returned ID, not its label. If the host returns only labels,
 resolve them through an explicit label-to-ID map; reject ambiguous, stale, or unmatched answers.
 Silence or a preselected option is not an answer. After acting, update the card with the outcome
