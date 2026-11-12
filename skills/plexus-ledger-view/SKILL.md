@@ -34,6 +34,8 @@ project aliases and sort ranks belong in private configuration.
 
 For an authenticated API request, call `mesh_plexus_work_items` with
 `view: "plexus.ledger-view/v1"` and `format: "md"`. Carry the verified principal on
-every request and follow `next_cursor` with the same query when using JSON pagination.
+every request. Follow `structuredContent.next_cursor` with the same query to obtain all
+Markdown pages. JSON mode exposes `next_cursor` directly. Preserve row numbering and
+combine pages without repeated headings. Report an incomplete read if paging fails.
 The versioned view requires the owner principal. Each page rechecks grants and source
 revisions. On a stale cursor, restart the query and discard prior pages.
