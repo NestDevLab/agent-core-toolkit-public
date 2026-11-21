@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import re
 import subprocess
@@ -100,8 +101,7 @@ def section(content: str, heading: str) -> str:
     return tail[: next_heading.start() if next_heading else None].strip()
 
 
-def validate(path: Path) -> list[str]:
-    content = path.read_text(encoding="utf-8")
+def validate_content(content: str) -> list[str]:
     errors: list[str] = []
     for heading in HEADINGS:
         body = section(content, heading)
@@ -120,15 +120,22 @@ def validate(path: Path) -> list[str]:
     return errors
 
 
+def validate(path: Path) -> list[str]:
+    return validate_content(path.read_text(encoding="utf-8"))
+
+
 def recorded(content: str, key: str) -> str:
     match = re.search(rf"^- {re.escape(key)}:\s*(.+)$", content, re.MULTILINE)
     return match.group(1).strip() if match else ""
 
 
-def check(path: Path, cwd: Path) -> list[str]:
-    content = path.read_text(encoding="utf-8")
+def check(path: Path, cwd: Path, expected_sha256: str | None = None) -> list[str]:
+    data = path.read_bytes()
+    if expected_sha256 is not None and hashlib.sha256(data).hexdigest() != expected_sha256:
+        return ["handoff fingerprint mismatch"]
+    content = data.decode("utf-8")
     current = git_state(cwd)
-    warnings = validate(path)
+    warnings = validate_content(content)
     for key, current_key in (("Workspace", "workspace"), ("Revision", "revision"), ("Branch", "branch"), ("Recorded state", "status")):
         old = recorded(content, key)
         if old and old != current[current_key]:
@@ -142,24 +149,28 @@ def main() -> int:
     create = sub.add_parser("create")
     create.add_argument("--goal", required=True)
     create.add_argument("--output", type=Path)
-    for name in ("validate", "check"):
+    for name in ("validate", "fingerprint", "check"):
         command = sub.add_parser(name)
         command.add_argument("file", type=Path)
+        if name == "check":
+            command.add_argument("--sha256")
     args = parser.parse_args()
 
     cwd = Path.cwd()
     if args.command == "create":
         if args.output:
-            target = args.output.expanduser().resolve()
-            if target.exists():
+            target = args.output.expanduser().absolute()
+            target.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            except FileExistsError:
                 print(f"ERROR refusing to overwrite: {target}")
                 return 2
-            target.parent.mkdir(parents=True, exist_ok=True)
         else:
             fd, raw = tempfile.mkstemp(prefix="conversation-handoff-", suffix=".md")
-            os.close(fd)
             target = Path(raw)
-        target.write_text(scaffold(args.goal, cwd), encoding="utf-8")
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(scaffold(args.goal, cwd))
         print(target)
         return 0
 
@@ -167,10 +178,19 @@ def main() -> int:
     if not path.is_file():
         print(f"ERROR file not found: {path}")
         return 2
-    findings = validate(path) if args.command == "validate" else check(path, cwd)
+    if args.command == "fingerprint":
+        data = path.read_bytes()
+        findings = validate_content(data.decode("utf-8"))
+        if not findings:
+            print(hashlib.sha256(data).hexdigest())
+            return 0
+    elif args.command == "validate":
+        findings = validate(path)
+    else:
+        findings = check(path, cwd, args.sha256)
     if findings:
         for finding in findings:
-            print(f"ERROR {finding}" if args.command == "validate" else f"WARN {finding}")
+            print(f"ERROR {finding}" if args.command != "check" else f"WARN {finding}")
         return 1
     print("OK handoff validated" if args.command == "validate" else "OK recorded state matches")
     return 0
